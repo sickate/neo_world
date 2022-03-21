@@ -2,8 +2,10 @@
 对 ak 和 ts 的封装，取数据
 """
 
-from os.path import exists, dirname, abspath
 import sys
+import requests as r
+from os import stat
+from os.path import exists, dirname, abspath
 sys.path.append('./')
 
 from env import np, pd, pdl, trange, tqdm, display, sleep
@@ -42,7 +44,7 @@ def ts_today_price():
 # AkShare
 #####################################################################
 
-def ak_all_plates(use_cache=True):
+def ak_all_plates(use_cache=True, verbose=False):
     '''
         Get all plate stocks
     '''
@@ -50,21 +52,44 @@ def ak_all_plates(use_cache=True):
     if use_cache:
         return pd.read_feather(cons_file)
     else:
-        con_df = pd.DataFrame()
-        cons = ak.stock_board_concept_name_ths()
-        cons.columns=['trade_date','name', 'stk_count', 'url']
-        inds = ak.stock_board_industry_name_ths()
-        sleep_counter = 0
-        for name in cons.name:
-            tmp = ak.stock_board_concept_cons_ths(symbol=name)
-            tmp['plate_type'] = 'concept'
-            con_df, sleep_counter = process_plate_res(con_df, tmp, name, sleep_counter)
-        for name in inds.name:
-            tmp = ak.stock_board_industry_cons_ths(symbol=name)
-            tmp['plate_type'] = 'industry'
-            con_df, sleep_counter = process_plate_res(con_df, tmp, name, sleep_counter)
-        con_df.reset_index().to_feather(cons_file)
-        return con_df
+        updated_on = pdl.from_timestamp(stat(cons_file).st_mtime).date()
+        if updated_on >= pdl.today().date():
+            return pd.read_feather(cons_file)
+        else:
+            con_df = pd.DataFrame()
+            cons = ak.stock_board_concept_name_ths()
+            # 日期	概念名称	成分股数量	网址	代码
+            cons.columns=['trade_date', 'name', 'stk_count', 'url', 'symbol']
+            inds = ak.stock_board_industry_name_ths()
+            sleep_counter = 0
+            print(f'Loading {len(con_df)} concepts...')
+            for name in cons.name:
+                tmp = ak.stock_board_concept_cons_ths(symbol=name)
+                tmp['plate_type'] = 'concept'
+                con_df, sleep_counter = process_plate_res(con_df, tmp, name, sleep_counter)
+            print(f'Loading {len(con_df)} industries...')
+            for name in inds.name:
+                tmp = ak.stock_board_industry_cons_ths(symbol=name)
+                tmp['plate_type'] = 'industry'
+                con_df, sleep_counter = process_plate_res(con_df, tmp, name, sleep_counter)
+            con_df.reset_index().to_feather(cons_file)
+            print(f'{len(con_df)} plates are loaded.')
+            return con_df
+
+
+def ak_tfp(end_date):
+    summary = """
+        AkShare 获取当天停复牌信息
+    """
+    end_date_ak = pdl.parse(end_date).strftime('%Y%m%d')
+    stock_em_tfp_df = ak.stock_tfp_em(date=end_date_ak)
+    stock_em_tfp_df.set_index('代码', inplace=True)
+    stock_em_tfp_df = stock_em_tfp_df[~stock_em_tfp_df.index.str.startswith('8')]
+    if len(stock_em_tfp_df[stock_em_tfp_df['停牌原因']=='交易异常波动'])>0:
+        display(stock_em_tfp_df[stock_em_tfp_df['停牌原因']=='交易异常波动'])
+    print('=================================================================================')
+    display(stock_em_tfp_df[stock_em_tfp_df['停牌原因']!='交易异常波动'])
+    return stock_em_tfp_df
 
 
 def ak_today_price(monitor_list=None):
@@ -79,19 +104,25 @@ def ak_today_price(monitor_list=None):
     return df.set_index('ts_code')
 
 
-def ak_today_auctions(stk_basic, save_db=True):
+def ak_today_auctions(ts_codes, save_db=True):
     res = pd.DataFrame()
-    for ts_code in tqdm(stk_basic.index):
+    for ts_code in tqdm(ts_codes):
         code = ts_code.split('.')[0]
         mkt = ts_code.split('.')[1]
         if mkt == 'BJ': # skip 北交所
             continue
-        stock_zh_a_hist_pre_min_em_df = ak.stock_zh_a_hist_pre_min_em(symbol=code)
-        stock_zh_a_hist_pre_min_em_df.columns = ['time', 'open', 'close', 'high', 'low', 'auc_vol', 'auc_amt', 'latest']
-        stock_zh_a_hist_pre_min_em_df.loc[:,'ts_code'] = ts_code
-        res = res.append(stock_zh_a_hist_pre_min_em_df.loc[11])
+        try:
+            stock_zh_a_hist_pre_min_em_df = ak.stock_zh_a_hist_pre_min_em(symbol=code)
+            stock_zh_a_hist_pre_min_em_df.columns = ['time', 'open', 'close', 'high', 'low', 'auc_vol', 'auc_amt', 'latest']
+            stock_zh_a_hist_pre_min_em_df.loc[:,'ts_code'] = ts_code
+            res = res.append(stock_zh_a_hist_pre_min_em_df.loc[11])
+        except Exception as e:
+            print(e)
+            print(f'Trying get {code} got error.')
 
     res.loc[:,'trade_date'] = res['time'].apply(lambda t: t.split(' ')[0])
+    res.loc[:, 'auc_amt'] = res.auc_amt/1000 # 金额单位改为k
+    res.loc[:, 'auc_vol'] = res.auc_vol/10   # 手改为千股
     res.set_index(['ts_code', 'trade_date'], inplace=True)
 
     if save_db:
@@ -129,6 +160,57 @@ def ak_activity(save=False, verbose=True):
     if save:
         insert_df(stock_legu_market_activity_df, 'activities')
     return stock_legu_market_activity_df.set_index('trade_date')
+
+
+########################################
+# From Tencent HTTP
+########################################
+
+def tx_auc(symbol=None, ts_code=None):
+    summary = '''
+    Realtime from Tencent
+    '''
+    if symbol is None:
+        symbol = add_postfix(ts_code=ts_code, type='ak')
+
+    url = "http://stock.gtimg.cn/data/index.php"
+    params = {
+        "appn": "detail",
+        "action": "data",
+        "c": symbol,
+        "p": 0,
+    }
+    req = r.get(url, params=params)
+    text_data = req.text
+    try:
+        big_df = (
+            pd.DataFrame(eval(text_data[text_data.find("[") :])[1].split("|"))
+            .iloc[:, 0]
+            .str.split("/", expand=True)
+        )
+    except:
+        print(f'Stock {symbol} has no valid data!')
+        big_df = pd.DataFrame()
+
+    if not big_df.empty:
+        big_df = big_df.iloc[:, 1:]
+        big_df.columns = ["成交时间", "成交价格", "价格变动", "成交量", "成交金额", "性质"]
+        big_df.reset_index(drop=True, inplace=True)
+        property_map = {
+            "S": "卖盘",
+            "B": "买盘",
+            "M": "中性盘",
+        }
+        big_df["性质"] = big_df["性质"].map(property_map)
+        big_df = big_df.astype({
+            '成交时间': str,
+            '成交价格': float,
+            '价格变动': float,
+            '成交量': int,
+            '成交金额': int,
+            '性质': str,
+        })
+    return big_df.head(1)
 
 
 ########################################

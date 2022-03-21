@@ -86,7 +86,9 @@ def display_up_df(df):
     if 'vol' in df.columns.to_list():
         df.loc[:,'vol']=df.vol/10000
     if 'auc_amt' in df.columns.to_list():
-        df.loc[:,'auc_amt']=df.auc_amt/100000000
+        df.loc[:,'auc_amt']=df.auc_amt/100000
+    if 'next_auc_amt' in df.columns.to_list():
+        df.loc[:,'next_auc_amt']=df.next_auc_amt/100000
     # df.avg_pct_chg.fillna(0, inplace=True)
     df = df.rename(columns={
         'turnover_rate_f': '流动换手率',
@@ -95,6 +97,7 @@ def display_up_df(df):
         'amount': '成交额',
         'pre_amount': '前日金额',
         'auc_amt': '竞价金额',
+        'next_auc_amt': '次日竞价金额',
         'circ_mv': '流值',
         'total_mv': '总市值',
         'open_pct': '开盘涨幅',
@@ -105,7 +108,7 @@ def display_up_df(df):
         # 'avg_pct_chg': '板块涨幅',
     })
 
-    money_cols = intersection(df.columns, ['成交额', '流值', '总市值', '封单金额', '竞价金额', '前日金额'])
+    money_cols = intersection(df.columns, ['成交额', '流值', '总市值', '封单金额', '竞价金额', '前日金额', '次日竞价金额'])
     price_cols = intersection(df.columns, ['open', 'close', 'high', 'low'])
     vol_cols = intersection(df.columns, ['vol'])
     pct_cols = intersection(df.columns, ['流动换手率', '涨幅', '开盘涨幅', '次开涨幅', '次日涨幅', 'c_v_o', 'pre_trf'])

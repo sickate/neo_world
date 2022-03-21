@@ -8,8 +8,8 @@ from utils.datetimes import daterange, trade_day_util
 from utils.argparser import data_params_wrapper
 # from utils.datasource import *
 from utils.stock_utils import *
-from utils.psql_client import load_table, insert_df
-from utils.datasource import ts, pro
+from utils.psql_client import load_table, insert_df, get_stock_basic
+from utils.datasource import ts, pro, ak_all_plates, ak_today_auctions
 from models import *
 # from models.daily_basic import DailyBasic
 # from models.shibor import Shibor
@@ -93,7 +93,18 @@ def fetch_dragon_jq(start_date, end_date, verbose=False):
 
 
 @data_params_wrapper
-def fetch_auctions(start_date, end_date, should_save=True, stocks=None, verbose=False):
+def fetch_ak_auctions(start_date, end_date):
+    summary = """
+    # 接口：AkShare auction
+    # only for last trading day
+    """
+    ts_codes = get_stock_basic(end_date).index
+    ak_today_auctions(ts_codes, save_db=True)
+
+
+
+@data_params_wrapper
+def fetch_jq_auctions(start_date, end_date, should_save=True, stocks=None, verbose=False):
     summary = """
     # 接口：JoinQuant auction
     """
@@ -571,8 +582,15 @@ def check_data_integrity(start_date=None, end_date=None, tables=None, try_fix=Tr
                     print(f"Fixed: {tbl.__tablename__}: [{day}]. You might want to re-run this check after all done.")
         print(f"Done check {tbl.__tablename__}, got {len(df)} records.")
 
+    df = load_table(Auction, start_date=end_date, end_date=end_date)
+    if len(df) < expected_count_in_day(Auction, day):
+        data_tasks('auction')(start_date=end_date, end_date=end_date)
+
     print("Updating StockBasic data...")
     fetch_stock_basics()
+
+    print("Updating plates data...")
+    ak_all_plates(use_cache=False)
     return None
 
 
@@ -592,7 +610,7 @@ def expected_count_in_day(model, date):
 
     if model in [UpStop, Dragon]:
         return 20
-    elif model in [Money]:
+    elif model in [Money, Auction]:
         from utils.datetimes import week_ago_date
         return len(load_table(Price, week_ago_date, week_ago_date)) - 120
     else:

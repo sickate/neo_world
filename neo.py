@@ -44,7 +44,7 @@ def data_tasks(task):
             'daily_basic': fetch_daily_basic,
             'stock_basic': fetch_stock_basics,
             'stock_share': fetch_stock_shares,
-            'auction': fetch_auctions,
+            'auction': fetch_ak_auctions,
             'adj_factor': fetch_adj_factor,
             'adj_price': fetch_adj_price,
             'upstop': fetch_upstops,

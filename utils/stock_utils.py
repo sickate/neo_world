@@ -82,7 +82,7 @@ def gen_price_data(df):
     df.loc[:, 'next20_pct_chg'] = (df.next_close_20/df.close-1) * 100
 
     # Max in prev days
-    for span in [10, 20, 30, 120]:
+    for span in [10, 20, 30, 60, 120]:
         df.loc[:, f'max_pre{span}_price'] = df.groupby(level='ts_code').high.apply(lambda x: x.rolling(window=span).max().shift(1))
         df.loc[:, f'min_pre{span}_price'] = df.groupby(level='ts_code').low.apply(lambda x: x.rolling(window=span).min().shift(1))
 

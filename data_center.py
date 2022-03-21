@@ -22,6 +22,7 @@ class DataCenter:
         self.price = None
         self.money_flow = None
         self.upstops = None
+        self.auctions = None
         self.dfall = None
 
 
@@ -92,6 +93,8 @@ class DataCenter:
         # 涨停类型
         print('Calculating upstop data...')
         df_init = calc_upstop(df_init)
+        df_init.loc[:, 'next_limit']   = df_init.groupby(level='ts_code').limit.shift(-1)
+        df_init.loc[:, 'next_up_type'] = df_init.groupby(level='ts_code').up_type.shift(-1)
         # 涨停复合计算
         # 均线计算
         print('Calculating MAs...')
