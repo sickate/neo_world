@@ -9,7 +9,7 @@ from utils.argparser import data_params_wrapper
 # from utils.datasource import *
 from utils.stock_utils import *
 from utils.psql_client import load_table, insert_df, get_stock_basic
-from utils.datasource import ts, pro, ak_all_plates, ak_today_auctions
+from utils.datasource import ts, pro, ak, ak_all_plates, ak_today_auctions
 from models import *
 # from models.daily_basic import DailyBasic
 # from models.shibor import Shibor
@@ -351,7 +351,6 @@ def fetch_daily_basic(start_date, end_date, verbose=False):
         print("Data of {} saved.".format(trade_date))
 
 
-
 @data_params_wrapper
 def fetch_adj_factor(start_date, end_date, verbose=False):
     for trade_date in daterange(start_date, end_date):
@@ -514,7 +513,12 @@ def fetch_stock_basics():
     描述：获取基础信息数据，包括股票代码、名称、上市日期、退市日期等
     """
     fields = 'ts_code,symbol,name,area,industry,fullname,enname,market,exchange,curr_type,list_status,list_date,delist_date,is_hs'
-    df = pro.stock_basic(fields=fields)
+    df = pro.stock_basic(fields=fields).set_index('ts_code')
+    akstk = ak.stock_zh_a_spot_em()
+    for i in akstk.index:
+        akstk.loc[i, 'ts_code'] = add_postfix(akstk.loc[i, '代码'], type='ts')
+    aknames = akstk[['ts_code', '名称']].set_index('ts_code').rename(columns={'名称': 'name'})
+    df = df.drop(columns='name').join(aknames).reset_index()
     df.to_sql('stock_basic', con=engine, if_exists='replace', index='id', schema='public')
     print("StockBasic is updated.")
 
@@ -595,6 +599,8 @@ def check_data_integrity(start_date=None, end_date=None, tables=None, try_fix=Tr
 
 
 def expected_count_in_day(model, date):
+    if date > '2022-05-01':
+        base_count = 4550
     if date > '2021-11-11':
         base_count = 4400
     if date > '2020-12-01':
@@ -612,7 +618,7 @@ def expected_count_in_day(model, date):
         return 20
     elif model in [Money, Auction]:
         from utils.datetimes import week_ago_date
-        return len(load_table(Price, week_ago_date, week_ago_date)) - 120
+        return len(load_table(Price, week_ago_date, week_ago_date)) - 140
     else:
         return base_count
 

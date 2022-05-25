@@ -103,8 +103,11 @@ def display_up_df(df):
         'open_pct': '开盘涨幅',
         'pct_chg': '涨幅',
         'next_open_pct': '次开涨幅',
+        'vol_ratio': '量比',
         'next_pct_chg': '次日涨幅',
         'fd_amount': '封单金额',
+        'auc_pre_vol_ratio': '竞价成交比',
+        'next_auc_pvol_ratio': '次日竞成比',
         # 'avg_pct_chg': '板块涨幅',
     })
 
@@ -112,16 +115,19 @@ def display_up_df(df):
     price_cols = intersection(df.columns, ['open', 'close', 'high', 'low'])
     vol_cols = intersection(df.columns, ['vol'])
     pct_cols = intersection(df.columns, ['流动换手率', '涨幅', '开盘涨幅', '次开涨幅', '次日涨幅', 'c_v_o', 'pre_trf'])
-    grad_ct_cols = intersection(df.columns, ['涨幅', '开盘涨幅', '次日涨幅'])
+    grad_ct_cols = intersection(df.columns, ['涨幅', '开盘涨幅', '次开涨幅', '次日涨幅'])
     grad_o_cols = intersection(df.columns, ['流动换手率', 'pre_trf'])
+    float_3_cols = intersection(df.columns, ['竞价成交比', '次日竞成比', '量比'])
     # return df
     display(
         df.style.format('{:.2f}亿',  subset=money_cols)
                 .format('{:.1f}万手', subset=vol_cols)
                 .format('{:.2f}', subset=price_cols)
+                .format('{:.3f}', subset=float_3_cols)
                 .format('{:.2f}%', subset=pct_cols)
-                .background_gradient(cmap=cmpct, subset=grad_ct_cols)
+                .background_gradient(cmap=cmpct, subset=grad_ct_cols, vmin=-11, vmax=11)
                 .background_gradient(cmap=cmo, subset=grad_o_cols)
+                .background_gradient(cmap=cmo, subset=float_3_cols, vmin=0.02, vmax=0.5)
                 # .format('{:.2f}%', subset=['流动换手率', '板块涨幅', '涨幅', '开盘涨幅', '次日涨幅', 'c_v_o', 'pre_trf'])
                 # .background_gradient(cmap=cmpct, subset=['板块涨幅', '涨幅', '开盘涨幅', '次日涨幅'])
     )

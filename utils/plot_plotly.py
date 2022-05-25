@@ -157,7 +157,7 @@ css_palette = [
  'yellowgreen'
 ]
 
-def plot_k_plotly(df_in, verbose=False, ma_spans=[5, 10], ma_col='ma_close'):
+def plot_k_plotly(df_in, verbose=False, ma_spans=[5, 10], ma_col='ma_close', height=600):
     summary = '''
         [plotly] Plot Candlestick
     '''
@@ -176,9 +176,12 @@ def plot_k_plotly(df_in, verbose=False, ma_spans=[5, 10], ma_col='ma_close'):
     end_date = df.index[-1].strftime('%Y-%m-%d')
 
     # Create subplots and mention plot grid size
-    fig = make_subplots(rows=3, cols=1, shared_xaxes=True, 
-            vertical_spacing=0.03, subplot_titles=(f'{title}: {start_date} - {end_date}', 'Volume'), 
-                   row_width=[0.2, 0.2, 0.7])
+    fig = make_subplots(
+            rows=3, cols=1, shared_xaxes=True, 
+            vertical_spacing=0.03, 
+            subplot_titles=(f'{title}: {start_date} - {end_date}', 'Volume'), 
+            row_width=[0.2, 0.2, 0.7]
+        )
 
     # Plot OHLC on 1st row
     fig.add_trace(go.Candlestick(
@@ -227,6 +230,11 @@ def plot_k_plotly(df_in, verbose=False, ma_spans=[5, 10], ma_col='ma_close'):
             dict(values=tdu.non_trading_days(start_date, end_date))
         ]
     )
+
+    # set size
+    fig.update_layout(
+        autosize=True,
+        height=height)
 
     # Do not show OHLC's rangeslider plot 
     # fig.update(layout_xaxis_rangeslider_visible=False)

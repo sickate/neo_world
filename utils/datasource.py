@@ -49,8 +49,10 @@ def ak_all_plates(use_cache=True, verbose=False):
         Get all plate stocks
     '''
     cons_file = f'{dirname(abspath(__file__))}/../data/plates.feather'
+    cached = pd.read_feather(cons_file)
+    print(f'Previous version has {len(cached)} records.')
     if use_cache:
-        return pd.read_feather(cons_file)
+        return cached
     else:
         updated_on = pdl.from_timestamp(stat(cons_file).st_mtime).date()
         if updated_on >= pdl.today().date():
@@ -62,13 +64,13 @@ def ak_all_plates(use_cache=True, verbose=False):
             cons.columns=['trade_date', 'name', 'stk_count', 'url', 'symbol']
             inds = ak.stock_board_industry_name_ths()
             sleep_counter = 0
-            print(f'Loading {len(con_df)} concepts...')
-            for name in cons.name:
+            print(f'Loading {len(cons)} concepts...')
+            for name in tqdm(cons.name):
                 tmp = ak.stock_board_concept_cons_ths(symbol=name)
                 tmp['plate_type'] = 'concept'
                 con_df, sleep_counter = process_plate_res(con_df, tmp, name, sleep_counter)
-            print(f'Loading {len(con_df)} industries...')
-            for name in inds.name:
+            print(f'Loading {len(inds)} industries...')
+            for name in tqdm(inds.name):
                 tmp = ak.stock_board_industry_cons_ths(symbol=name)
                 tmp['plate_type'] = 'industry'
                 con_df, sleep_counter = process_plate_res(con_df, tmp, name, sleep_counter)
@@ -128,8 +130,8 @@ def ak_today_auctions(ts_codes, save_db=True):
     if save_db:
         today = res.reset_index()['trade_date'].at[0]
         yesterday = tdu.past_trade_days(end_date=today)[-2]
-        pre_price = load_table(model=Price, start_date=yesterday, end_date=yesterday).droplevel('trade_date').rename({'close':'pre_close'})
-        auctions = res.join(pre_price[['pre_close']])
+        pre_price = load_table(model=Price, start_date=yesterday, end_date=yesterday)[['close']].droplevel('trade_date').rename(columns={'close':'pre_close'})
+        auctions = res.join(pre_price)
         auctions.loc[:,'open_pct']=round((auctions.open/auctions.pre_close-1) * 100, 2)
         auctions = auctions[['open', 'pre_close', 'open_pct', 'auc_vol', 'auc_amt']].reset_index()
         insert_df(df=auctions, tablename='auction')
@@ -154,7 +156,7 @@ def ak_activity(save=False, verbose=True):
     cols = ['up', 'upstop','real_upstop', 'st_upstop', 'dn', 'dnstop', 'real_dnstop', 'st_dnstop', 'fl', 'halt', 'vitality', 'trade_date']
     stock_legu_market_activity_df.columns = cols
     stock_legu_market_activity_df.trade_date = stock_legu_market_activity_df.trade_date.apply(lambda x: x.split(' ')[0])
-    stock_legu_market_activity_df.vitality = stock_legu_market_activity_df.vitality.apply(lambda x: float(x.strip('%')))
+    stock_legu_market_activity_df.vitality = stock_legu_market_activity_df.vitality.apply(lambda x: float(x.split('%')[0]))
     for col in cols[0:-2]:
         stock_legu_market_activity_df[col] = stock_legu_market_activity_df[col].apply(lambda x: int(x))
     if save:

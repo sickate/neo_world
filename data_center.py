@@ -119,11 +119,15 @@ class DataCenter:
         df_init.loc[:, 'pre_bar_type'] = df_init.groupby('ts_code').bar_type.shift(1)
         df_init.loc[:, 'pre2_bar_type'] = df_init.groupby('ts_code').bar_type.shift(2)
 
+        auctions = load_table(Auction, self.start_date, self.end_date)
+        self.auctions = auctions.sort_index()
+        df_init = df_init.join(self.auctions[['auc_vol', 'auc_amt']])
+
         print('Performing shift to get prev signals...')
         df_init.loc[:, 'cvo'] = df_init.pct_chg - df_init.open_pct
-        for ind in ['open_times', 'fl_ratio', 'fc_ratio', 'strth', 'amount', 'amp']:
+        for ind in ['open_times', 'fl_ratio', 'fc_ratio', 'strth', 'amount', 'amp', 'vol']:
             df_init.loc[:, f'pre_{ind}'] = df_init.groupby(level='ts_code')[ind].shift(1)
-        for ind in ['cvo']:
+        for ind in ['cvo', 'auc_amt', 'auc_vol']:
             df_init.loc[:, f'next_{ind}'] = df_init.groupby(level='ts_code')[ind].shift(-1)
 
         self.dfall = df_init

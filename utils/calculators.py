@@ -29,3 +29,12 @@ def cn_round_price(price):
 
 def to_pct(num):
     return cn_round_price(num * 100)
+
+
+def kelly(p=0.5, b=2):
+    '''
+    f: 每一次下注的金钱占总钱数的比例
+    p: 胜率
+    b: 赔率(正确情况下的获利与错误情况下损失的比值)
+    '''
+    return round((p * (b+1)-1)/b, 2)

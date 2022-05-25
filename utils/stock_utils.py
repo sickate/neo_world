@@ -19,7 +19,7 @@ from utils.datetimes import trade_day_util as tdu
 
 
 BASIC_COLS = ['name', 'open', 'high', 'low', 'close', 'pct_chg', 'amount']
-ORI_COLS = ['amp', 'first_time', 'last_time', 'open_times', 'fc_ratio', 'fl_ratio', 'limit']
+ORI_COLS = ['first_time', 'last_time', 'open_times', 'fc_ratio', 'fl_ratio', 'limit']
 ADDED_COLS = ['upstop_num', 'conseq_up_num', 'post_up_num', 'up_type']
 Y_COLS = ['pct_chg', 'close_open_pct', 'next_high_open_pct', 'next_pct_chg', 'next2_pct_chg', 'next3_pct_chg', 'next10_pct_chg', 'next20_pct_chg']
 
@@ -199,13 +199,17 @@ def add_postfix(ts_code, type='ts'):
     if type == 'ts':
         if ts_code.startswith('3') or ts_code.startswith('0'):
             return ts_code + '.SZ'
-        else:
+        elif ts_code.startswith('6'):
             return ts_code + '.SH'
+        else:
+            return ts_code + '.BJ'
     elif type == 'ak':
         if ts_code.startswith('3') or ts_code.startswith('0'):
             return 'sz' + ts_code.split('.')[0]
-        else:
+        elif ts_code.startswith('6'):
             return 'sh' + ts_code.split('.')[0]
+        else:
+            return 'bj' + ts_code.split('.')[0]
     elif type == 'jq':
         return jq.normalize_code([ts_code])[0]
     else:
@@ -622,9 +626,9 @@ def upstop_analyze(df, tdate, backtest=False, show_detail=True):
         # ['name', 'circ_mv', 'total_mv', 'pre_conseq_up_num', 'pre_up_type', 'pre_open_times', 'open_pct', 'pct_chg', 'c_v_o', 'pre_vol_type', 'pre_trf', 'turnover_rate_f'] + back_test_cols + [ 'vol', 'amount'] + ['ind_name', 'avg_pct_chg'] ]
 
     today_up = today_df[today_df.limit == 'U'][
-        ['name', 'circ_mv', 'total_mv', 'conseq_up_num', 'pre_up_type', 'open_pct', 'up_type', 'c_v_o', 'pre_vol_type', 'pre_trf', 'turnover_rate_f'] + back_test_cols + [ 'vol', 'amount'] + ORI_COLS]
+        ['name', 'circ_mv', 'total_mv', 'conseq_up_num', 'pre_up_type', 'auc_amt', 'open_pct', 'up_type', 'c_v_o', 'pre_vol_type', 'pre_trf', 'turnover_rate_f'] + back_test_cols + [ 'vol', 'amount'] + ORI_COLS]
     today_drop = today_df[(today_df.pre_conseq_up_num >= 1) & (today_df.conseq_up_num == 0)][
-        ['name', 'circ_mv', 'total_mv', 'pre_conseq_up_num', 'pre_up_type', 'pre_open_times', 'open_pct', 'pct_chg', 'c_v_o', 'pre_vol_type', 'pre_trf', 'turnover_rate_f'] + back_test_cols + [ 'vol', 'amount']]
+        ['name', 'circ_mv', 'total_mv', 'pre_conseq_up_num', 'pre_up_type', 'pre_open_times', 'auc_amt', 'open_pct', 'pct_chg', 'c_v_o', 'pre_vol_type', 'pre_trf', 'turnover_rate_f'] + back_test_cols + [ 'vol', 'amount']]
 
     print('连板个股')
     today_ups = today_up[(today_up.conseq_up_num >= 2)]

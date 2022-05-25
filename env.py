@@ -4,6 +4,7 @@ import random
 import glob
 import requests
 import sys
+import copy
 sys.path.append('./')
 
 import numpy as np

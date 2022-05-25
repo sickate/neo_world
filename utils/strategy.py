@@ -24,6 +24,15 @@ class Strategy():
             self.rules[col].append({'op': op, 'val': val})
 
 
+    def merge_other(self, stra2):
+        for k, v in stra2.rules.items():
+            if k in self.rules:
+                self.rules[k] = self.rules[k] + stra2.rules[k]
+            else:
+                self.rules[k] = v
+        return self
+
+
     def get_result(self, df, trade_date=None, verbose=False):
         if verbose:
             print(self.rules)
@@ -158,3 +167,87 @@ def test_strategy(df, strategy, test_date_end, test_date_start=None, show_invali
     return res_df, df
 
 
+###################################
+# Strategies
+###################################
+
+# 1. box
+box_stra = Strategy(name='box & up')
+box_stra.add_condition('conseq_up_num', '=', val=1)
+box_stra.add_condition('conseq_up_num', '<', var='list_days')
+box_stra.add_condition('turnover_rate_f', '<', val=45)
+box_stra.add_condition('turnover_rate_f', '>=', val=7)
+box_stra.add_condition('high', '>', var='low', ratio=1.02) # 日内振幅大于 2% (非一字板）
+box_stra.add_condition('vol_ratio', '>', val=0.9)
+box_stra.add_condition('vol', '>', var='ma_vol_5', ratio=0.9)
+box_stra.add_condition('vol', '>', var='pre_vol', ratio=0.9)
+# far dates
+box_stra.add_condition('close', '>', var='max_pre120_price', ratio=0.95)
+box_stra.add_condition('close', '<', var='max_pre120_price', ratio=1.05)
+# closer dates
+box_stra.add_condition('close', '>', var='max_pre10_price', ratio=0.95)
+box_stra.add_condition('close', '<', var='max_pre10_price', ratio=1.05)
+box_stra.add_condition('close', '<', var='min_pre120_price', ratio=1.9)
+
+# 2. vol
+###################################
+vol_stra=Strategy(name='vol & up')
+vol_stra.add_condition('conseq_up_num', '>=', val=1)
+vol_stra.add_condition('conseq_up_num', '<=', val=3)
+vol_stra.add_condition('amount',  '<', val=1500000) # 15亿，unit: k
+vol_stra.add_condition('circ_mv', '<', val=800000) # 80亿，unit: w
+vol_stra.add_condition('turnover_rate_f', '<', val=45)
+vol_stra.add_condition('turnover_rate_f', '>=', val=7)
+vol_stra.add_condition('high', '>', var='low', ratio=1.02)
+vol_stra.add_condition('vol_ratio', '>', val=1.5)
+vol_stra.add_condition('vol', '>', var='ma_vol_5', ratio=1.7)
+
+# 3. up
+###################################
+up_stra = Strategy(name='up')
+up_stra.add_condition('pct_chg', '>', val=9)
+up_stra.add_condition('conseq_up_num', '>=', val=1)
+up_stra.add_condition('conseq_up_num', '<=', val=3)
+up_stra.add_condition('conseq_up_num', '<', var='list_days')
+up_stra.add_condition('amount',  '<', val=1500000) # 15亿，unit: k
+# s.add_condition('circ_mv', '<', val=1000000) # 80亿，unit: w
+up_stra.add_condition('turnover_rate_f', '<', val=45)
+up_stra.add_condition('turnover_rate_f', '>=', val=5)
+up_stra.add_condition('high', '>', var='low', ratio=1.02) # 日内振幅大于 2% (非一字板）
+# s.add_condition('vol_ratio', '>', val=1.5)
+# s.add_condition('vol_ratio', '<', val=3.3)
+# s.add_condition('vol', '>', var='ma_vol_5', ratio=1.7)
+# 近期涨幅
+up_stra.add_condition('close', '<', var='ma_close_60', ratio=1.2)
+
+# 4. auc
+###################################
+auc_stra = Strategy(name='auc')
+auc_stra.add_condition('next_open_pct', '<', val=7)
+auc_stra.add_condition('next_open_pct', '>', val=2)
+auc_stra.add_condition('next_auc_amt', '>', var='amount', ratio=0.05)
+# s.add_condition('next_auc_amt', '<', var='pre_amount', ratio=0.05)
+auc_stra.add_condition('next_auc_amt', '>', val=10000)
+auc_stra.add_condition('next_auc_amt', '<', val=100000)
+
+# 5. straigt Y upstops
+###################################
+conseq_y_stra = Strategy(name='yzlgk')
+conseq_y_stra.add_condition('conseq_up_num', '>=', val=2)
+conseq_y_stra.add_condition('up_type', '=', val='Y')
+conseq_y_stra.add_condition('pre_up_type', '=', val='Y')
+conseq_y_stra.add_condition('pct_chg', '>', val=9)
+# conseq_y_stra.add_condition('next_open_pct', '>', val=-2)
+# conseq_y_stra.add_condition('next_open_pct', '<', val=7)
+
+# 6. new stocks
+###################################
+new_stra = Strategy(name='new')
+new_stra.add_condition('conseq_up_num', '>=', val=1)
+new_stra.add_condition('list_days', '<=', val=180)
+
+# xx. All ups
+###################################
+stra_pall = Strategy('stra_pall')
+stra_pall.add_condition('conseq_up_num', '>=', val=1)
+stra_pall.add_condition('conseq_up_num', '<=', val=3)
