@@ -1,7 +1,8 @@
 from sqlalchemy import Column, Integer, String, Boolean, Date, Float, UniqueConstraint
 from sqlbase import Base
 
-
+# vol 单位手
+# amount 单位万
 class Money(Base):
 
     __tablename__ = 'money'

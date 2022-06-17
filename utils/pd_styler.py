@@ -87,6 +87,8 @@ def display_up_df(df):
         df.loc[:,'vol']=df.vol/10000
     if 'auc_amt' in df.columns.to_list():
         df.loc[:,'auc_amt']=df.auc_amt/100000
+    if 'dde_amt' in df.columns.to_list():
+        df.loc[:,'dde_amt']=df.dde_amt/100000
     if 'next_auc_amt' in df.columns.to_list():
         df.loc[:,'next_auc_amt']=df.next_auc_amt/100000
     # df.avg_pct_chg.fillna(0, inplace=True)
@@ -111,17 +113,20 @@ def display_up_df(df):
         # 'avg_pct_chg': '板块涨幅',
     })
 
-    money_cols = intersection(df.columns, ['成交额', '流值', '总市值', '封单金额', '竞价金额', '前日金额', '次日竞价金额'])
-    price_cols = intersection(df.columns, ['open', 'close', 'high', 'low'])
+    money_cols = intersection(df.columns, ['成交额', '流值', '总市值', '封单金额', '竞价金额', '前日金额', '次日竞价金额', 'dde_amt'])
+    price_cols = intersection(df.columns, ['open', 'close', 'high', 'low', 'strth'])
     vol_cols = intersection(df.columns, ['vol'])
-    pct_cols = intersection(df.columns, ['流动换手率', '涨幅', '开盘涨幅', '次开涨幅', '次日涨幅', 'c_v_o', 'pre_trf'])
+    pct_cols = intersection(df.columns, ['流动换手率', '涨幅', '开盘涨幅', '次开涨幅', '次日涨幅', 'c_v_o', 'pre_trf', 'fc_ratio', 'fl_ratio', 'dde'])
     grad_ct_cols = intersection(df.columns, ['涨幅', '开盘涨幅', '次开涨幅', '次日涨幅'])
     grad_o_cols = intersection(df.columns, ['流动换手率', 'pre_trf'])
     float_3_cols = intersection(df.columns, ['竞价成交比', '次日竞成比', '量比'])
+    int_cols = intersection(df.columns, ['open_times', '连板数', '前日连板数', ])
+
     # return df
     display(
         df.style.format('{:.2f}亿',  subset=money_cols)
                 .format('{:.1f}万手', subset=vol_cols)
+                .format('{:.0f}', subset=int_cols)
                 .format('{:.2f}', subset=price_cols)
                 .format('{:.3f}', subset=float_3_cols)
                 .format('{:.2f}%', subset=pct_cols)

@@ -226,7 +226,6 @@ auc_stra = Strategy(name='auc')
 auc_stra.add_condition('next_open_pct', '<', val=7)
 auc_stra.add_condition('next_open_pct', '>', val=2)
 auc_stra.add_condition('next_auc_amt', '>', var='amount', ratio=0.05)
-# s.add_condition('next_auc_amt', '<', var='pre_amount', ratio=0.05)
 auc_stra.add_condition('next_auc_amt', '>', val=10000)
 auc_stra.add_condition('next_auc_amt', '<', val=100000)
 

@@ -39,7 +39,7 @@ class StockFilter():
         return tmp_sf
 
 
-    def st(self):
+    def st(self, anti=False):
         tmp_sf = StockFilter.clone(self)
         tmp_sf.stocks = tmp_sf.stocks[tmp_sf.stocks.name.str.contains('ST')]
         return tmp_sf
@@ -50,9 +50,12 @@ class StockFilter():
         return tmp_sf
 
     # 目前用不上，已经不包含退市
-    def tui(self):
+    def tui(self, anti=False):
         tmp_sf = StockFilter.clone(self)
-        tmp_sf.stocks = tmp_sf.stocks[tmp_sf.stocks.name.str.contains('退')]
+        if anti:
+            tmp_sf.stocks = tmp_sf.stocks[~tmp_sf.stocks.name.str.contains('退')]
+        else:
+            tmp_sf.stocks = tmp_sf.stocks[tmp_sf.stocks.name.str.contains('退')]
         return tmp_sf
 
     def hs(self):

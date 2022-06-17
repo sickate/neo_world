@@ -120,7 +120,12 @@ def load_table(model, start_date, end_date, ts_codes=None):
     else:
         df = read_pg(query=query)
     df['trade_date'] = pd.to_datetime(df.trade_date)
-    df.set_index(['ts_code', 'trade_date'], inplace=True)
+    if 'ts_code' in df.columns:
+        df.set_index(['ts_code', 'trade_date'], inplace=True)
+    elif 'name' in df.columns:
+        df.set_index(['name', 'trade_date'], inplace=True)
+    else:
+        df.set_index(['trade_date'], inplace=True)
     df = df.drop('id', axis=1)
     return df
 

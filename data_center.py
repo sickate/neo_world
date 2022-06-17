@@ -125,10 +125,15 @@ class DataCenter:
 
         print('Performing shift to get prev signals...')
         df_init.loc[:, 'cvo'] = df_init.pct_chg - df_init.open_pct
-        for ind in ['open_times', 'fl_ratio', 'fc_ratio', 'strth', 'amount', 'amp', 'vol']:
+        for ind in ['open_times', 'fl_ratio', 'fc_ratio', 'strth', 'amount', 'amp', 'vol', 'vol_ratio']:
             df_init.loc[:, f'pre_{ind}'] = df_init.groupby(level='ts_code')[ind].shift(1)
-        for ind in ['cvo', 'auc_amt', 'auc_vol']:
+        for ind in ['cvo', 'auc_amt', 'auc_vol', 'bar_type', 'vol_ratio']:
             df_init.loc[:, f'next_{ind}'] = df_init.groupby(level='ts_code')[ind].shift(-1)
+        df_init.loc[:, 'next_auc_pvol_ratio'] = df_init.next_auc_amt/df_init.amount
+
+        df_init.loc[:, 'dde_amt'] = (df_init.buy_elg_amount + df_init.buy_lg_amount - df_init.sell_elg_amount - df_init.sell_lg_amount) * 10 # unit从万变成千
+        df_init.loc[:, 'dde_vol'] = (df_init.buy_elg_vol + df_init.buy_lg_vol - df_init.sell_elg_vol - df_init.sell_lg_vol) / 10 # unit从手换成千股
+        df_init.loc[:, 'dde'] = round(df_init.dde_vol / df_init.float_share * 10, 2) # 千股除以万股，/10,再换成 pct，*100 =》 *10
 
         self.dfall = df_init
         return self.dfall

@@ -9,6 +9,7 @@ from .dragon import Dragon
 from .activity import Activity
 from .auction import Auction
 from .daily_tick import DailyTick
+from .plate import Plate
 
 # from .memo import Memo
 # from .trade_note import TradeNote

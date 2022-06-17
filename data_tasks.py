@@ -516,10 +516,11 @@ def fetch_stock_basics():
     df = pro.stock_basic(fields=fields).set_index('ts_code')
     akstk = ak.stock_zh_a_spot_em()
     for i in akstk.index:
-        akstk.loc[i, 'ts_code'] = add_postfix(akstk.loc[i, '代码'], type='ts')
-    aknames = akstk[['ts_code', '名称']].set_index('ts_code').rename(columns={'名称': 'name'})
-    df = df.drop(columns='name').join(aknames).reset_index()
-    df.to_sql('stock_basic', con=engine, if_exists='replace', index='id', schema='public')
+        ts_code = add_postfix(akstk.loc[i, '代码'], type='ts')
+        name = akstk.loc[i, '名称']
+        if ts_code in df.index and name:
+            df.loc[ts_code, 'name'] = name
+    df.reset_index().to_sql('stock_basic', con=engine, if_exists='replace', index='id', schema='public')
     print("StockBasic is updated.")
 
 

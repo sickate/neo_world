@@ -44,12 +44,14 @@ def ts_today_price():
 # AkShare
 #####################################################################
 
-def ak_all_plates(use_cache=True, verbose=False):
+def ak_all_plates(use_cache=True, major_update=False, verbose=False):
     '''
         Get all plate stocks
     '''
     cons_file = f'{dirname(abspath(__file__))}/../data/plates.feather'
     cached = pd.read_feather(cons_file)
+    if len(cached) == 0:
+        major_update = True
     print(f'Previous version has {len(cached)} records.')
     if use_cache:
         return cached
@@ -66,15 +68,26 @@ def ak_all_plates(use_cache=True, verbose=False):
             sleep_counter = 0
             print(f'Loading {len(cons)} concepts...')
             for name in tqdm(cons.name):
-                tmp = ak.stock_board_concept_cons_ths(symbol=name)
-                tmp['plate_type'] = 'concept'
-                con_df, sleep_counter = process_plate_res(con_df, tmp, name, sleep_counter)
+                if not major_update and len(cached[cached.plate_name==name])>0:
+                    con_df = con_df.append(cached[cached['plate_name'] == name])
+                    continue
+                else:
+                    print(f'Fetching new concept {name} ...')
+                    tmp = ak.stock_board_concept_cons_ths(symbol=name)
+                    tmp['plate_type'] = 'concept'
+                    con_df, sleep_counter = process_plate_res(con_df, tmp, name, sleep_counter)
             print(f'Loading {len(inds)} industries...')
             for name in tqdm(inds.name):
-                tmp = ak.stock_board_industry_cons_ths(symbol=name)
-                tmp['plate_type'] = 'industry'
-                con_df, sleep_counter = process_plate_res(con_df, tmp, name, sleep_counter)
-            con_df.reset_index().to_feather(cons_file)
+                if not major_update and len(cached[cached.plate_name==name])>0:
+                    con_df = con_df.append(cached[cached['plate_name'] == name])
+                    continue
+                else:
+                    print(f'Fetching new industry {name} ...')
+                    tmp = ak.stock_board_industry_cons_ths(symbol=name)
+                    tmp['plate_type'] = 'industry'
+                    con_df, sleep_counter = process_plate_res(con_df, tmp, name, sleep_counter)
+            con_df = con_df.reset_index().drop(columns=['level_0'])
+            con_df.to_feather(cons_file)
             print(f'{len(con_df)} plates are loaded.')
             return con_df
 
@@ -106,8 +119,13 @@ def ak_today_price(monitor_list=None):
     return df.set_index('ts_code')
 
 
-def ak_today_auctions(ts_codes, save_db=True):
+def ak_today_auctions(ts_codes, save_db=True, open_mkt=True):
     res = pd.DataFrame()
+    if open_mkt:
+        ind = 11
+    else:
+        ind = 252
+        save_db = False
     for ts_code in tqdm(ts_codes):
         code = ts_code.split('.')[0]
         mkt = ts_code.split('.')[1]
@@ -117,7 +135,7 @@ def ak_today_auctions(ts_codes, save_db=True):
             stock_zh_a_hist_pre_min_em_df = ak.stock_zh_a_hist_pre_min_em(symbol=code)
             stock_zh_a_hist_pre_min_em_df.columns = ['time', 'open', 'close', 'high', 'low', 'auc_vol', 'auc_amt', 'latest']
             stock_zh_a_hist_pre_min_em_df.loc[:,'ts_code'] = ts_code
-            res = res.append(stock_zh_a_hist_pre_min_em_df.loc[11])
+            res = res.append(stock_zh_a_hist_pre_min_em_df.loc[ind])
         except Exception as e:
             print(e)
             print(f'Trying get {code} got error.')
@@ -306,7 +324,7 @@ def process_plate_res(con_df, tmp, name, sleep_counter):
         con_df = con_df.append(tmp1)
     sleep_counter += 1
     if sleep_counter % 3 == 1:
-        sleep(10)
+        sleep(2)
     return con_df, sleep_counter
 
 
