@@ -10,7 +10,9 @@ from utils.argparser import data_params_wrapper
 from utils.stock_utils import *
 from utils.psql_client import load_table, insert_df, get_stock_basic
 from utils.datasource import ts, pro, ak, ak_all_plates, ak_today_auctions
+from utils.datetimes import biquater_ago_date
 from models import *
+from data_center import DataCenter
 # from models.daily_basic import DailyBasic
 # from models.shibor import Shibor
 # from models.stock import Stock
@@ -474,37 +476,6 @@ def show_data_status():
         else:
             print('No {model.__name__} records.')
 
-#     q = db_session.query(Price).order_by('trade_date')
-    # q_desc = db_session.query(Price).order_by(text('trade_date desc'))
-    # result = q.first()
-    # if result:
-        # print(f'Price starts from {result.trade_date}')
-        # print(f'Price ends to {q_desc.first().trade_date}')
-    # else:
-#         print('No Price records.')
-
-    # print
-    # q = db_session.query(Price).order_by("trade_date desc").limit(1)
-    # if len(result) >= 1:
-        # print(result[-1].trade_date)
-    # else:
-        # print('No Price records.')
-    # print(Price.order_by(Price.trade_date.desc()).first().trade_date)
-    # print(Price.trade_date.desc().first().trade_date)
-    # print(Price.trade_date.first().trade_date)
-    # print(DailyBasic.trade_date.desc().first().trade_date)
-    # print(DailyBasic.trade_date.first().trade_date)
-
-
-def fetch_index_infos():
-    df = pro.index_basic(market='SW')
-
-
-def get_basics(trade_date):
-    # basics = ts.get_stock_basics() # 获取基本面数据
-    # basics
-    pass
-
 
 @data_params_wrapper
 def fetch_stock_basics():
@@ -587,8 +558,10 @@ def check_data_integrity(start_date=None, end_date=None, tables=None, try_fix=Tr
                     print(f"Fixed: {tbl.__tablename__}: [{day}]. You might want to re-run this check after all done.")
         print(f"Done check {tbl.__tablename__}, got {len(df)} records.")
 
+    print("Checking Auction data...")
     df = load_table(Auction, start_date=end_date, end_date=end_date)
     if len(df) < expected_count_in_day(Auction, day):
+        print("Updating Auction data...")
         data_tasks('auction')(start_date=end_date, end_date=end_date)
 
     print("Updating StockBasic data...")
@@ -596,7 +569,34 @@ def check_data_integrity(start_date=None, end_date=None, tables=None, try_fix=Tr
 
     print("Updating plates data...")
     ak_all_plates(use_cache=False)
+
+    print("Starts to pre-process data...")
+    init_data(biquater_ago_date, end_date, expire_days=5)
+
     return None
+
+
+##################################
+# Data Utils
+##################################
+
+def init_data(start_date, end_date, expire_days=30):
+    print(f'Initializing data from {start_date} to {end_date}...')
+    dc = DataCenter(start_date, end_date)
+
+    search_pattern = glob.glob(f'{ROOT_PATH}/tmp/price_{start_date}_{end_date}_*.feather')
+    for f in search_pattern:
+        # read cache
+        print(f'Found cache file: {f}, loading...')
+        df_init = pd.read_feather(f).set_index(['ts_code', 'trade_date'])
+        break
+    else:
+        df_init = dc.merge_all()
+        # cache it
+        expire_date = pdl.today().add(days=expire_days).to_date_string()
+        df_file_path = f'{ROOT_PATH}/tmp/price_{start_date}_{end_date}_{expire_date}.feather'
+        df_init.reset_index().to_feather(df_file_path)
+    return dc, df_init
 
 
 def expected_count_in_day(model, date):
@@ -622,21 +622,6 @@ def expected_count_in_day(model, date):
         return len(load_table(Price, week_ago_date, week_ago_date)) - 140
     else:
         return base_count
-
-
-def color_val(val):
-    """
-    Takes a scalar and returns a string with
-    the css property `'color: red'` for negative
-    strings, black otherwise.
-    """
-    if val > 0:
-        color = 'red'
-    if val < 0:
-        color = 'green'
-    else:
-        color = 'white'
-    return 'color: %s' % color
 
 
 def bulkload_csv_data_to_database(engine, tablename, columns, data, sep=","):

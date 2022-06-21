@@ -8,9 +8,12 @@ pandas>=1.0.0
 modin[all]
 pandas-datareader>=0.7.4
 hmmlearn>=0.2.2
-Catalyst>=19.11
 statsmodels
 pandas-profiling
+
+# Catalyst is a PyTorch framework for Deep Learning Research and Development
+# Catalyst>=19.11
+
 
 # financial
 quandl
