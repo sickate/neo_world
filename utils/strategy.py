@@ -33,13 +33,15 @@ class Strategy():
         return self
 
 
-    def get_result(self, df, trade_date=None, verbose=False):
+    def get_result(self, df, trade_date=None, date_range=None, verbose=False):
         if verbose:
             print(self.rules)
 
         if trade_date:
             print(f'Searching {trade_date}...')
             df = df.xs(trade_date, level='trade_date')
+        elif date_range:
+            df = df.xs(slice(*date_range), level='trade_date', drop_level=False)
 
         if self.stock_filter:
             df = self.stock_filter.filter(df)

@@ -182,6 +182,11 @@ def ak_activity(save=False, verbose=True):
     return stock_legu_market_activity_df.set_index('trade_date')
 
 
+def ak_get_index(indices=['上证指数', '深证成指', '创业板指']):
+    stock_zh_index_spot_df = ak.stock_zh_index_spot()
+    stock_zh_index_spot_df.columns = ['code', 'name', 'latest', 'amt_chg', 'pct_chg', 'pre_close', 'open', 'high', 'low', 'vol', 'amount']
+    return stock_zh_index_spot_df[stock_zh_index_spot_df.name.isin(indices)]
+
 ########################################
 # From Tencent HTTP
 ########################################
