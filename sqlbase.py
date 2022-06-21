@@ -22,12 +22,12 @@ conn_str_local = "postgresql+psycopg2://{}:{}@{}:{}/{}".format(
 
 conn_str_remote = "postgresql+psycopg2://{}:{}@{}:{}/{}".format(
             'tzhu',
-            'mylifeforaiur',
-            'alpha',
+            None,
+            'localhost',
             5432,
             'stock')
 
-conn_str = conn_str_local if current_user == 'tzhu' or current_user == 'daniel' else conn_str_remote
+conn_str = conn_str_remote if host_name == 'elon' else conn_str_local
 
 engine = create_engine(
             conn_str,
@@ -48,8 +48,4 @@ def build_sql(sqlalchemy_query):
         compile_kwargs={"literal_binds": True}))
 
 if __name__ == '__main__':
-    df = read_pg('adj_factor', engine)
-    to_pg(df, 'adj_factor', engine)
-
-
-
+    print(conn_str)
