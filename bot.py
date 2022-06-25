@@ -38,14 +38,30 @@ if __name__ == '__main__':
     # new
     dc = DataCenter(start_date, end_date)
     stk_basic = dc.get_stock_basics()
+
     price = dc.get_price()
     upstop = dc.get_upstops()
-    # mf = dc.get_money_flow()
+
+    logger.info(f'Start processing price df...')
+    price = load_stock_prices(start_date=start_date, end_date=end_date, fast_load=True)
+
+    logger.info(f'Start processing adj price...')
+    price = gen_adj_price(self.price, replace=True)
+
+    logger.info(f'Join price with other columns...')
     df = price.join(mf).join(upstop.drop(columns=['pct_chg', 'close'])).join(stk_basic[['name', 'list_date']])
     df = df[~df.list_date.isna()] # remove already 退市的
 
+    logger.info(f'Start processing complex price...')
+    df.loc[:, 'pre_close_6'] = df.groupby(level='ts_code').close.shift(6)
+    df.loc[:, 'pre_close_21'] = df.groupby(level='ts_code').close.shift(21)
+    df.loc[:, 'pre_pct_chg'] = df.groupby(level='ts_code').pct_chg.shift(1)
+    df.loc[:, 'pre5_pct_chg'] = (df.pre_close/df.pre_close_6 - 1) * 100
+    df.loc[:, 'pre20_pct_chg'] = (df.pre_close/df.pre_close_21 - 1) * 100
+
     # 涨停类型
     # 当日是否涨停
+    logger.info(f'Calculating upstop variables...')
     df.loc[:, 'upstop_num'] = df.limit.apply(lambda lim: 1 if lim == 'U' else -1 if lim =='D' else 0)
     # 累计连续涨停个数
     tmp = df.groupby(level='ts_code').upstop_num.cumsum()
@@ -55,16 +71,13 @@ if __name__ == '__main__':
 
     # 前日开板次数
     df.loc[:, 'pre_open_times'] = df.groupby('ts_code').open_times.shift(1)
-
     df.loc[:, 'pre5_upstops'] = df.groupby(level='ts_code').upstop_num.apply(lambda x: x.rolling(window=5, min_periods=1).sum())
     df.loc[:, 'pre10_upstops'] = df.groupby(level='ts_code').upstop_num.apply(lambda x: x.rolling(window=10, min_periods=1).sum())
     df.loc[:, 'upstop_price'] = df.pre_close.apply(up_stop_price)
-
     df.loc[:, 'next_limit']   = df.groupby(level='ts_code').limit.shift(-1)
-        # 涨停复合计算
-        # 均线计算
+
     logger.info('Calculating MAs...')
-    df= gen_ma(df, col='close', mavgs=[5, 10, 30])
+    df = gen_ma(df, col='close', mavgs=[5, 10, 30])
 
     # 计算 list_days
     # logger.info('Calculating list_days...')
@@ -83,7 +96,7 @@ if __name__ == '__main__':
     df.loc[:, 'pre2_bar_type'] = df.groupby('ts_code').bar_type.shift(2)
 
     auctions = load_table(Auction, start_date, end_date).sort_index()
-    df= df.join(self.auctions[['auc_vol', 'auc_amt']])
+    df = df.join(self.auctions[['auc_vol', 'auc_amt']])
 
     print('Performing shift to get prev signals...')
     # df.loc[:, 'cvo'] = df.pct_chg - df.open_pct
@@ -98,7 +111,7 @@ if __name__ == '__main__':
     # df_init.loc[:, 'dde'] = round(df_init.dde_vol / df_init.float_share * 10, 2) # 千股除以万股，/10,再换成 pct，*100 =》 *10
 
     # cache it
-   df_init.reset_index().to_feather(df_file_path)
+    df.reset_index().to_feather(df_file_path)
  
 
 
