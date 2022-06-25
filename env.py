@@ -25,5 +25,8 @@ import pandas as pd
 
 from IPython.core.display import display
 
+from utils.logger import logger
+
 ROOT_PATH = os.getcwd()
-print(f'[{pdl.now()}] Enviroment loaded. Working Dir: {ROOT_PATH}')
+logger.debug('You are not alone.')
+logger.info(f'Enviroment loaded. Working Dir: {ROOT_PATH}')
