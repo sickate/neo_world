@@ -211,16 +211,14 @@ def slim_init(start_date, end_date, expire_days=30):
         logger.info(f'Join price with other columns...')
         df = (
             price.join(mf)
-                 .join(upstop.drop(columns=['pct_chg', 'close']))
-                 .join(stk_basic[['name', 'list_date']])
+                 .join(upstop.drop(columns=['pct_chg', 'close', 'fc_ratio', 'fl_ratio', 'fd_amount', 'last_time']))
+                 .join(stk_basic[['name', 'list_date']].astype(dtype="string[pyarrow]"))
                  .join(auctions)
                  .drop(columns=[
                     'change', 'adj_factor', 'pe', 'pe_ttm', 'total_share',
                     'free_share', 'last_factor', 'norm_adj', 'adj_vol', 'amp',
-                    'fc_ratio', 'fl_ratio', 'fd_amount', 'last_time'
                   ])
         )
-        df.loc[:, 'name'] = df['name'].astype(dtype="string[pyarrow]")
         logger.debug(f'price Memory after join: {price.memory_usage(deep=True)}')
         del mf
         del upstop
