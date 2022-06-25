@@ -60,7 +60,7 @@ def ak_all_plates(use_cache=True, major_update=False, verbose=False):
         if updated_on >= pdl.today().date():
             return pd.read_feather(cons_file)
         else:
-            con_df = pd.DataFrame()
+            con_dfs
             cons = ak.stock_board_concept_name_ths()
             # 日期	概念名称	成分股数量	网址	代码
             cons.columns=['trade_date', 'name', 'stk_count', 'url', 'symbol']
@@ -69,23 +69,26 @@ def ak_all_plates(use_cache=True, major_update=False, verbose=False):
             print(f'Loading {len(cons)} concepts...')
             for name in tqdm(cons.name):
                 if not major_update and len(cached[cached.plate_name==name])>0:
-                    con_df = con_df.append(cached[cached['plate_name'] == name])
+                    con_dfs.append(cached[cached['plate_name'] == name])
                     continue
                 else:
                     print(f'Fetching new concept {name} ...')
                     tmp = ak.stock_board_concept_cons_ths(symbol=name)
                     tmp['plate_type'] = 'concept'
-                    con_df, sleep_counter = process_plate_res(con_df, tmp, name, sleep_counter)
+                    tmp_con_df, sleep_counter = process_plate_res(pd.DataFrame(), tmp, name, sleep_counter)
+                    con_dfs.append(tmp_con_df)
             print(f'Loading {len(inds)} industries...')
             for name in tqdm(inds.name):
                 if not major_update and len(cached[cached.plate_name==name])>0:
-                    con_df = con_df.append(cached[cached['plate_name'] == name])
+                    con_dfs.append(cached[cached['plate_name'] == name])
                     continue
                 else:
                     print(f'Fetching new industry {name} ...')
                     tmp = ak.stock_board_industry_cons_ths(symbol=name)
                     tmp['plate_type'] = 'industry'
-                    con_df, sleep_counter = process_plate_res(con_df, tmp, name, sleep_counter)
+                    tmp_con_df, sleep_counter = process_plate_res(pd.DataFrame(), tmp, name, sleep_counter)
+                    con_dfs.append(tmp_con_df)
+            con_df = pd.concat(con_dfs)
             con_df = con_df[~con_df.duplicated(subset=['ts_code', 'plate_type', 'plate_name'])]
             con_df = con_df.reset_index().drop(columns=['level_0'])
             con_df.to_feather(cons_file)

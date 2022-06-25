@@ -23,8 +23,8 @@ from data_tasks import *
 
 preview_cols = [
     'name', 'plate_name', 'close', 'ma_close_60', 'pct_chg', 'conseq_up_num', 'up_type',
-    'last_time', 'strth', 'open_times', 
-    # 'first_time', 'fc_ratio', 'fl_ratio',
+    'open_times',
+    # 'strth', 'last_time', 'first_time', 'fc_ratio', 'fl_ratio',
     'circ_mv', 'total_mv', 'turnover_rate_f', 'vol_ratio', 'amount', 'dde', 'dde_amt',
 ]
 
