@@ -60,14 +60,14 @@ def ak_all_plates(use_cache=True, major_update=False, verbose=False):
         if updated_on >= pdl.today().date():
             return pd.read_feather(cons_file)
         else:
-            con_dfs
+            con_dfs = []
             cons = ak.stock_board_concept_name_ths()
             # 日期	概念名称	成分股数量	网址	代码
-            cons.columns=['trade_date', 'name', 'stk_count', 'url', 'symbol']
+            # cons.columns=['trade_date', 'name', 'stk_count', 'url', 'symbol']
             inds = ak.stock_board_industry_name_ths()
             sleep_counter = 0
             print(f'Loading {len(cons)} concepts...')
-            for name in tqdm(cons.name):
+            for name in tqdm(cons['name']):
                 if not major_update and len(cached[cached.plate_name==name])>0:
                     con_dfs.append(cached[cached['plate_name'] == name])
                     continue
