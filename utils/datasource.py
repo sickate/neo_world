@@ -75,7 +75,7 @@ def ak_all_plates(use_cache=True, major_update=False, verbose=False):
                     print(f'Fetching new concept {name} ...')
                     tmp = ak.stock_board_concept_cons_ths(symbol=name)
                     tmp['plate_type'] = 'concept'
-                    tmp_con_df, sleep_counter = process_plate_res(pd.DataFrame(), tmp, name, sleep_counter)
+                    tmp_con_df, sleep_counter = process_plate_res(tmp, name, sleep_counter)
                     con_dfs.append(tmp_con_df)
             print(f'Loading {len(inds)} industries...')
             for name in tqdm(inds.name):
@@ -86,7 +86,7 @@ def ak_all_plates(use_cache=True, major_update=False, verbose=False):
                     print(f'Fetching new industry {name} ...')
                     tmp = ak.stock_board_industry_cons_ths(symbol=name)
                     tmp['plate_type'] = 'industry'
-                    tmp_con_df, sleep_counter = process_plate_res(pd.DataFrame(), tmp, name, sleep_counter)
+                    tmp_con_df, sleep_counter = process_plate_res(tmp, name, sleep_counter)
                     con_dfs.append(tmp_con_df)
             con_df = pd.concat(con_dfs)
             con_df = con_df[~con_df.duplicated(subset=['ts_code', 'plate_type', 'plate_name'])]
