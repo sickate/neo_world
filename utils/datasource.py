@@ -323,18 +323,14 @@ def ak_latest_prices(cons, verbose=True, display_latency=5):
 # Helpers
 ########################################
 
-def process_plate_res(con_df, tmp, name, sleep_counter):
+def process_plate_res(tmp, name, sleep_counter):
     tmp1 = tmp.rename(columns={'代码':'ts_code'})[['ts_code', 'plate_type']]
     tmp1.ts_code = tmp1.ts_code.apply(add_postfix)
     tmp1['plate_name'] = name
-    if len(con_df) == 0:
-        con_df = tmp1
-    else:
-        con_df = con_df.append(tmp1)
     sleep_counter += 1
     if sleep_counter % 3 == 1:
         sleep(2)
-    return con_df, sleep_counter
+    return tmp1, sleep_counter
 
 
 if __name__ == '__main__':
