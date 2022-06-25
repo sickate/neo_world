@@ -15,10 +15,11 @@ from sqlbase import engine, db_session, build_sql, text, desc, StringIO
 from sqlalchemy.exc import IntegrityError
 
 from utils.datetimes import *
+from utils.logger import logger
 
 # 多进程模式，要传链接字符串而非对象
 if 'modin' in pd.__path__[0]:
-    print('Using Modin')
+    logger.info('Using Modin')
     from sqlbase import conn_str as engine
 else:
     from sqlbase import engine
@@ -55,7 +56,7 @@ def load_stock_prices(start_date, end_date, ts_codes=None, fast_load=True, verbo
         query_price = query_price.filter(Price.ts_code.in_(ts_codes))
 
     if verbose:
-        print(f'Start loading stock data from PG...')
+        logger.info(f'Start loading stock data from PG...')
     if fast_load:
         price = read_pg(query=query_price)
     else:
@@ -73,7 +74,7 @@ def load_stock_prices(start_date, end_date, ts_codes=None, fast_load=True, verbo
         query_adjfactor = query_adjfactor.filter(AdjFactor.ts_code.in_(ts_codes))
 
     if verbose:
-        print(f'Start loading adjfactor data from PG...')
+        logger.info(f'Start loading adjfactor data from PG...')
     if fast_load:
         adjfactor = read_pg(query=query_adjfactor)
     else:
@@ -90,7 +91,7 @@ def load_stock_prices(start_date, end_date, ts_codes=None, fast_load=True, verbo
     if ts_codes is not None:
         query_basic = query_basic.filter(DailyBasic.ts_code.in_(ts_codes))
     if verbose:
-        print(f'Start loading daily_basic data from PG...')
+        logger.info(f'Start loading daily_basic data from PG...')
     if fast_load:
         basic = read_pg(query=query_basic)
     else:
@@ -99,7 +100,7 @@ def load_stock_prices(start_date, end_date, ts_codes=None, fast_load=True, verbo
     basic.set_index(['ts_code', 'trade_date'], inplace=True)
 
     if verbose:
-        print(f'Merging...')
+        logger.info(f'Merging...')
     df = price.join(adjfactor[['adj_factor']]).join(basic[['turnover_rate', 'turnover_rate_f',
         'volume_ratio','pe', 'pe_ttm', 'total_mv', 'circ_mv', 'total_share', 'float_share', 'free_share']])
     return df.drop(columns='id')
@@ -114,7 +115,7 @@ def load_table(model, start_date, end_date, ts_codes=None):
     if ts_codes is not None:
         query = query.filter(getattr(model, 'ts_code').in_(ts_codes))
     if 'modin' in pd.__path__:
-        print(f'Loading table {model.__table__} with Modin..')
+        logger.info(f'Loading table {model.__table__} with Modin..')
         sql = f'select * from {model.__table__} where trade_date >= \'{start_date}\' and trade_date <= \'{end_date}\''
         df = pd.read_sql(sql, engine)
     else:
@@ -192,10 +193,10 @@ def get_record(object_id, class_name='Order'):
 if __name__ == '__main__':
 
     from utils.argparser import model_arg_parser
-    print('System initializing...')
+    logger.info('System initializing...')
 
     options = model_arg_parser()
-    print(options)
+    logger.info(options)
 
     ts_codes = [options.ts_code] if options.ts_code else None
     start_date = options.start_date
@@ -203,8 +204,8 @@ if __name__ == '__main__':
     verbose = options.verbose
 
     stock_basics = get_stock_basic(today_date=end_date)
-    print(f'Get {len(stock_basics)} stocks.')
-    print(stock_basics.head(5))
+    logger.info(f'Get {len(stock_basics)} stocks.')
+    logger.info(stock_basics.head(5))
 
     prices = load_stock_prices(start_date=start_date, end_date=end_date, ts_codes=ts_codes)
-    print(prices.head(5))
+    logger.info(prices.head(5))

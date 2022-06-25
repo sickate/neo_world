@@ -86,6 +86,7 @@ def ak_all_plates(use_cache=True, major_update=False, verbose=False):
                     tmp = ak.stock_board_industry_cons_ths(symbol=name)
                     tmp['plate_type'] = 'industry'
                     con_df, sleep_counter = process_plate_res(con_df, tmp, name, sleep_counter)
+            con_df = con_df[~con_df.duplicated(subset=['ts_code', 'plate_type', 'plate_name'])]
             con_df = con_df.reset_index().drop(columns=['level_0'])
             con_df.to_feather(cons_file)
             print(f'{len(con_df)} plates are loaded.')

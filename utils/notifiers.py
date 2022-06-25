@@ -4,11 +4,12 @@
 # from wechatpy.work import parse_message, create_reply
 import os
 from wechatpy.enterprise import WeChatClient
-wechat_client = WeChatClient(CORP_ID, SECRET)
 
 CORP_ID = 'ww01fac26127e4ee29'
 AGENT_ID = '1000002'
 SECRET = 'Dog55Mun0E9vWjG8fyMCVQWvoyxy-VHDoF8TdaXYz2g'
+
+wechat_client = WeChatClient(CORP_ID, SECRET)
 
 def notify(title, text):
     os.system("""

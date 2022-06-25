@@ -6,6 +6,7 @@ from models import *
 from utils.stock_utils import *
 from utils.stock_filter import *
 from utils.psql_client import *
+from utils.logger import logger
 
 
 class DataCenter:
@@ -33,7 +34,7 @@ class DataCenter:
         return self.money_flow
 
 
-    def get_price(self, force_refresh=False, calc_adj=True):
+    def get_price(self, force_refresh=False, calc_adj=True, additional_vars=True):
         if self.price is None or force_refresh:
             self.price = load_stock_prices(start_date=self.start_date, end_date=self.end_date, fast_load=True)
             if calc_adj:
@@ -141,25 +142,20 @@ class DataCenter:
 
 def init_data(start_date, end_date, expire_days=30):
     print(f'Initializing data from {start_date} to {end_date}...')
-    df_file_path = f'{ROOT_PATH}/tmp/price_{start_date}_{end_date}.feather'
     dc = DataCenter(start_date, end_date)
-    if os.path.exists(df_file_path):
+
+    search_pattern = glob.glob(f'{ROOT_PATH}/tmp/price_{start_date}_{end_date}_*.feather')
+    for f in search_pattern:
         # read cache
-        print(f'Found cache file: {df_file_path}, loading...')
-        df_init = pd.read_feather(df_file_path).set_index(['ts_code', 'trade_date'])
+        print(f'Found cache file: {f}, loading...')
+        df_init = pd.read_feather(f).set_index(['ts_code', 'trade_date'])
+        break
     else:
         df_init = dc.merge_all()
+        # cache it
+        expire_date = pdl.today().add(days=expire_days).to_date_string()
+        df_file_path = f'{ROOT_PATH}/tmp/price_{start_date}_{end_date}_{expire_date}.feather'
         df_init.reset_index().to_feather(df_file_path)
-
-    # Clean old caches
-    files = glob.glob(f'{ROOT_PATH}/tmp/price_*')
-    for f in files:
-        if (pdl.now().float_timestamp - os.path.getctime(f)) > 3600*24*expire_days:  # 创建时间大于?天
-            try:
-                print(f'Deleting file: {f} ...')
-                os.remove(f)
-            except OSError as e:
-                print("Error: %s : %s" % (f, e.strerror))
     return dc, df_init
 
 

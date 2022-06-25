@@ -11,7 +11,7 @@ from utils.calculators import *
 # Indicator Calculators
 #####################################################################
 
-def gen_adj_price(quotes, replace=False, single_index=False):
+def gen_adj_price(df, replace=False, single_index=False):
     summary = """
         This version works on Multiindex and single index(only 1 stock)
         * single_index =:
@@ -20,8 +20,6 @@ def gen_adj_price(quotes, replace=False, single_index=False):
               True: 在 close/open/high/low/pre_close 列原地替换
               False: 新建 5 列 adj_pre_close/adj_open ...
     """
-    df = quotes.copy()
-
     if single_index:
         last_factor = df.iloc[-1].at['adj_factor']
     else:

@@ -51,6 +51,22 @@ def top_diff(df, start_date=None, end_date=None, top_n=20, price_col='close', da
 # Variable Generators
 #####################################################################
 
+def gen_var_sub(df, new_var, var1, var2, diff=True, pct=True):
+    if diff:
+        tmp = (df[var1] - df[var2])/df[var2]
+    else:
+        tmp = df[var1]/df[var2]
+    if pct:
+        tmp = tmp * 100
+    df.loc[:, new_var] = tmp
+    return df
+
+
+
+
+
+
+
 def gen_price_data(df):
     # Calc price related
     print('Processing price variables...')

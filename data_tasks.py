@@ -12,7 +12,7 @@ from utils.psql_client import load_table, insert_df, get_stock_basic
 from utils.datasource import ts, pro, ak, ak_all_plates, ak_today_auctions
 from utils.datetimes import biquater_ago_date
 from models import *
-from data_center import DataCenter
+from data_center import DataCenter, init_data
 # from models.daily_basic import DailyBasic
 # from models.shibor import Shibor
 # from models.stock import Stock
@@ -570,33 +570,10 @@ def check_data_integrity(start_date=None, end_date=None, tables=None, try_fix=Tr
     print("Updating plates data...")
     ak_all_plates(use_cache=False)
 
-    print("Starts to pre-process data...")
-    init_data(biquater_ago_date, end_date, expire_days=5)
+    # print("Starts to pre-process data...")
+    # init_data(biquater_ago_date, end_date, expire_days=5)
 
     return None
-
-
-##################################
-# Data Utils
-##################################
-
-def init_data(start_date, end_date, expire_days=30):
-    print(f'Initializing data from {start_date} to {end_date}...')
-    dc = DataCenter(start_date, end_date)
-
-    search_pattern = glob.glob(f'{ROOT_PATH}/tmp/price_{start_date}_{end_date}_*.feather')
-    for f in search_pattern:
-        # read cache
-        print(f'Found cache file: {f}, loading...')
-        df_init = pd.read_feather(f).set_index(['ts_code', 'trade_date'])
-        break
-    else:
-        df_init = dc.merge_all()
-        # cache it
-        expire_date = pdl.today().add(days=expire_days).to_date_string()
-        df_file_path = f'{ROOT_PATH}/tmp/price_{start_date}_{end_date}_{expire_date}.feather'
-        df_init.reset_index().to_feather(df_file_path)
-    return dc, df_init
 
 
 def expected_count_in_day(model, date):

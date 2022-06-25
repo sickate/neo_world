@@ -39,14 +39,19 @@ if __name__ == '__main__':
     dc = DataCenter(start_date, end_date)
     stk_basic = dc.get_stock_basics()
 
-    price = dc.get_price()
     upstop = dc.get_upstops()
+    mf = dc.get_money_flow()
+    mf.loc[:, 'dde_amt'] = (mf.buy_elg_amount + mf.buy_lg_amount - mf.sell_elg_amount - mf.sell_lg_amount) * 10 # unit从万变成千
+    mf.loc[:, 'dde_vol'] = (mf.buy_elg_vol + mf.buy_lg_vol - mf.sell_elg_vol - mf.sell_lg_vol) / 10 # unit从手换成千股
+    mf.loc[:, 'dde'] = round(mf.dde_vol / mf.float_share * 10, 2) # 千股除以万股，/10,再换成 pct，*100 =》 *10
+    mf = mf[['dde_amt', 'dde_vol', 'dde']]
 
     logger.info(f'Start processing price df...')
     price = load_stock_prices(start_date=start_date, end_date=end_date, fast_load=True)
 
     logger.info(f'Start processing adj price...')
-    price = gen_adj_price(self.price, replace=True)
+    # price = dc.get_price()
+    price = gen_adj_price(price, replace=True)
 
     logger.info(f'Join price with other columns...')
     df = price.join(mf).join(upstop.drop(columns=['pct_chg', 'close'])).join(stk_basic[['name', 'list_date']])
@@ -98,7 +103,7 @@ if __name__ == '__main__':
     auctions = load_table(Auction, start_date, end_date).sort_index()
     df = df.join(self.auctions[['auc_vol', 'auc_amt']])
 
-    print('Performing shift to get prev signals...')
+    logger.info('Performing shift to get prev signals...')
     # df.loc[:, 'cvo'] = df.pct_chg - df.open_pct
     # for ind in ['open_times', 'fl_ratio', 'fc_ratio', 'strth', 'amount', 'amp', 'vol', 'vol_ratio']:
         # df.loc[:, f'pre_{ind}'] = df.groupby(level='ts_code')[ind].shift(1)
@@ -111,6 +116,7 @@ if __name__ == '__main__':
     # df_init.loc[:, 'dde'] = round(df_init.dde_vol / df_init.float_share * 10, 2) # 千股除以万股，/10,再换成 pct，*100 =》 *10
 
     # cache it
+    logger.info('Saving cache file...')
     df.reset_index().to_feather(df_file_path)
  
 
