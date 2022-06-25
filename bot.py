@@ -23,7 +23,8 @@ from data_tasks import *
 
 preview_cols = [
     'name', 'plate_name', 'close', 'ma_close_60', 'pct_chg', 'conseq_up_num', 'up_type',
-    'first_time', 'last_time', 'strth', 'open_times', 'fc_ratio', 'fl_ratio',
+    'last_time', 'strth', 'open_times', 
+    # 'first_time', 'fc_ratio', 'fl_ratio',
     'circ_mv', 'total_mv', 'turnover_rate_f', 'vol_ratio', 'amount', 'dde', 'dde_amt',
 ]
 
@@ -227,7 +228,7 @@ def slim_init(start_date, end_date, expire_days=30):
         del auctions
         gc.collect()
 
-        df = StockFilter().tui(anti=True).st(anti=True).filter(df)
+        df = StockFilter(end_date).tui(anti=True).st(anti=True).filter(df)
 
         logger.debug(f'{len(df)} df Memory after join: {df.memory_usage(deep=True)}')
 
@@ -274,10 +275,10 @@ def slim_init(start_date, end_date, expire_days=30):
         gc.collect()
 
         # 计算 bar type
-        logger.info('Calculating bar_type...')
-        df.loc[:, 'bar_type'] = df.apply(f_calc_yinyang, axis=1).astype('string[pyarrow]')
-        df.loc[:, 'pre_bar_type'] = df.groupby('ts_code').bar_type.shift(1)
-        logger.debug(f'df Memory: {df.memory_usage(deep=True)}')
+        # logger.info('Calculating bar_type...')
+        # df.loc[:, 'bar_type'] = df.apply(f_calc_yinyang, axis=1).astype('string[pyarrow]')
+        # df.loc[:, 'pre_bar_type'] = df.groupby('ts_code').bar_type.shift(1)
+        # logger.debug(f'df Memory: {df.memory_usage(deep=True)}')
 
         logger.info('Calculating up_type...')
         df.loc[:, 'up_type'] = df[df.limit=='U'].apply(f_set_upstop_types, axis=1).astype('string[pyarrow]')
