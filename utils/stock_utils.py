@@ -64,9 +64,6 @@ def gen_var_sub(df, new_var, var1, var2, diff=True, pct=True):
 
 
 
-
-
-
 def gen_price_data(df):
     # Calc price related
     print('Processing price variables...')
@@ -453,7 +450,7 @@ def calc_plate_data(df, cons):
     """
     cons_detail = (
         df.reset_index()[
-            ['name', 'vol','amount','close','open','high','low', 'pct_chg', 'open_pct',
+            ['name', 'vol','amount','close','open','high','low', 'pct_chg',
              'limit', 'upstop_num', 'trade_date','ts_code']]
           .merge(cons[['plate_name', 'plate_type','ts_code']], on='ts_code')
          .set_index(['ts_code','trade_date'])
@@ -485,6 +482,18 @@ def calc_plate_data(df, cons):
     con_sum = tmp.xs('concept', level='plate_type', drop_level=True)
     ind_sum = tmp.xs('industry', level='plate_type', drop_level=True)
     return con_sum, ind_sum, cons_detail
+
+
+def calc_top_cons(cons_today, cons):
+    top_cons= (
+         cons_today.reset_index()[['ts_code', 'name','plate_name']]
+            .merge(cons[['upstop_num', 'pct_chg', 'p5_pct_chg']], on=['plate_name'])
+            .sort_values(['pct_chg'], ascending=False)
+            .groupby('name').head(3)
+            .groupby('ts_code').agg({'plate_name': str_join})
+    )
+    return top_cons
+
 
 
 def calc_concept_ranking(df, date, concept_detail, verbose=False):

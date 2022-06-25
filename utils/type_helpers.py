@@ -1,4 +1,9 @@
 import copy
+from functools import reduce
+
+def str_join(series):
+    return reduce(lambda x, y: f'{x},{y}', series)
+
 
 def contains(small, big):
     for i in range(len(big)-len(small)+1):

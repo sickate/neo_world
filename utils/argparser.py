@@ -49,6 +49,17 @@ def realtime_options():
     return options
 
 
+def bot_options():
+    parser = argparse.ArgumentParser(description='Strategy Bot Arguments.')
+    parser.add_argument("-s", "--start-date", dest="start_date", default=None)
+    parser.add_argument("-e", "--end-date", dest="end_date", default=None)
+    parser.add_argument("-t", "--task_name", dest="task_name")
+    parser.add_argument("-v", "--verbose", dest="verbose", action='store_true', default=False)
+    parser.add_argument("-n", "--notification", dest="send_notification", action='store_true', default=False)
+    options = parser.parse_args()
+    return options
+
+
 # filter empty (optional) arguments passed from cmd line
 def data_params_wrapper(func):
     @wraps(func)

@@ -159,6 +159,21 @@ def init_data(start_date, end_date, expire_days=30):
     return dc, df_init
 
 
+def clean_cache_files():
+    files = glob.glob('../tmp/price_*')
+    for f in files:
+        file_name = f.split('/')[-1]
+        file_params = file_name.split('.')[0].split('_')
+        if len(file_params) == 4 and pdl.parse(file_params[3]).set(tz='Asia/Shanghai') >= pdl.today():
+            print(f'Preserving recent file {file_name}')
+        else:
+            print(f'Deleting old file {file_name}')
+            try:
+                os.remove(f)
+            except OSError as e:
+                print("Error: %s : %s" % (f, e.strerror))
+
+
 if __name__ == '__main__':
     dc = DataCenter(start_date, end_date=today_date)
     price = dc.get_price()
