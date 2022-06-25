@@ -219,14 +219,19 @@ def slim_init(start_date, end_date, expire_days=30):
                     'free_share', 'last_factor', 'norm_adj', 'adj_vol', 'amp',
                   ])
         )
-        logger.debug(f'price Memory after join: {price.memory_usage(deep=True)}')
+        logger.debug(f'{len(df)} df Memory after join: {df.memory_usage(deep=True)}')
+
         del mf
         del upstop
         del stk_basic
         del auctions
         gc.collect()
 
-        df = df[~df.list_date.isna()] # remove already 退市的
+        df = StockFilter().tui(anti=True).st(anti=True).filter(df)
+
+        logger.debug(f'{len(df)} df Memory after join: {df.memory_usage(deep=True)}')
+
+        # df = df[~df.list_date.isna()] # remove already 退市的
         df.drop(columns=['list_date'], inplace=True)
 
         df.loc[:, 'dde'] = round(df.dde_vol / df.float_share * 10, 2) # 千股除以万股，/10,再换成 pct，*100 =》 *10
