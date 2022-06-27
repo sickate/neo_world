@@ -335,7 +335,7 @@ def send_notification(res, strategy):
     if len(res) > 0:
         styled_res = style_full_df(res[preview_cols])
         logger.info(res.name)
-        out_image = f'./output/{strategy_{next_date}.png'
+        out_image = f'./output/{strategy}_{next_date}.png'
         dfi.export(styled_res, out_image)
         wechat_bot.send_text(df_to_text(res))
         wechat_bot.send_image(out_image)

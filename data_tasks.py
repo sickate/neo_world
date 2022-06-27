@@ -596,7 +596,7 @@ def expected_count_in_day(model, date):
         return 20
     elif model in [Money, Auction]:
         from utils.datetimes import week_ago_date
-        return len(load_table(Price, week_ago_date, week_ago_date)) - 140
+        return len(load_table(Price, week_ago_date, week_ago_date)) - 160
     else:
         return base_count
 
