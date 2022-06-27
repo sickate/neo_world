@@ -62,6 +62,9 @@ def style_df(df):
     cmg = sns.light_palette("green", as_cmap=True)
     cmo = sns.light_palette("orange", as_cmap=True)
     cmpct = sns.diverging_palette(240, 10, as_cmap=True)
+    # cmg = 'PuBu'
+    # cmo = 'YlOrRd'
+    # cmpct = 'YlOrRd'
     return (
         df.style.format('{:.3}%',  subset=pct_subset)
             .format('{:.3}', subset=ratio_subset)
@@ -120,21 +123,22 @@ def style_full_df(df):
     grad_ct_cols = intersection(df.columns, ['涨幅', '开盘涨幅', '次开涨幅', '次日涨幅'])
     grad_o_cols = intersection(df.columns, ['流动换手率', 'pre_trf'])
     float_3_cols = intersection(df.columns, ['竞价成交比', '次日竞成比', '量比'])
+    float_2_cols = intersection(df.columns, ['ma_close_60'])
     int_cols = intersection(df.columns, ['open_times', '连板数', '前日连板数', ])
 
     # return df
+    # TODO: vmin and vmax causes error
     df_styled = (
         df.style.format('{:.2f}亿',  subset=money_cols)
                 .format('{:.1f}万手', subset=vol_cols)
                 .format('{:.0f}', subset=int_cols)
                 .format('{:.2f}', subset=price_cols)
                 .format('{:.3f}', subset=float_3_cols)
+                .format('{:.2f}', subset=float_2_cols)
                 .format('{:.2f}%', subset=pct_cols)
-                .background_gradient(cmap=cmpct, subset=grad_ct_cols, vmin=-11, vmax=11)
+                .background_gradient(cmap=cmpct, subset=grad_ct_cols) #, vmin=-11, vmax=11)
                 .background_gradient(cmap=cmo, subset=grad_o_cols)
-                .background_gradient(cmap=cmo, subset=float_3_cols, vmin=0.02, vmax=0.5)
-                # .format('{:.2f}%', subset=['流动换手率', '板块涨幅', '涨幅', '开盘涨幅', '次日涨幅', 'c_v_o', 'pre_trf'])
-                # .background_gradient(cmap=cmpct, subset=['板块涨幅', '涨幅', '开盘涨幅', '次日涨幅'])
+                .background_gradient(cmap=cmo, subset=float_3_cols) #, vmin=0.02, vmax=0.5)
     )
     return df_styled
 

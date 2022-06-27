@@ -644,12 +644,6 @@ def upstop_analyze(df, tdate, backtest=False, show_detail=True):
     else:
         back_test_cols = []
     raw_today_up = today_df[today_df.limit == 'U']
-    # today_up = today_df[today_df.limit == 'U'][
-        # ['name', 'circ_mv', 'total_mv', 'conseq_up_num', 'pre_up_type', 'open_pct', 'up_type', 'c_v_o', 'pre_vol_type', 'pre_trf', 'turnover_rate_f'] + back_test_cols + [ 'vol', 'amount'] + ORI_COLS + ['ind_name', 'avg_pct_chg'] ]
-
-    # today_drop = today_df[(today_df.pre_conseq_up_num >= 1) & (today_df.conseq_up_num == 0)][
-        # ['name', 'circ_mv', 'total_mv', 'pre_conseq_up_num', 'pre_up_type', 'pre_open_times', 'open_pct', 'pct_chg', 'c_v_o', 'pre_vol_type', 'pre_trf', 'turnover_rate_f'] + back_test_cols + [ 'vol', 'amount'] + ['ind_name', 'avg_pct_chg'] ]
-
     today_up = today_df[today_df.limit == 'U'][
         ['name', 'circ_mv', 'total_mv', 'conseq_up_num', 'pre_up_type', 'auc_amt', 'open_pct', 'up_type', 'c_v_o', 'pre_vol_type', 'pre_trf', 'turnover_rate_f'] + back_test_cols + [ 'vol', 'amount'] + ORI_COLS]
     today_drop = today_df[(today_df.pre_conseq_up_num >= 1) & (today_df.conseq_up_num == 0)][

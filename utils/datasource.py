@@ -124,7 +124,8 @@ def ak_today_price(monitor_list=None):
 
 
 def ak_today_auctions(ts_codes, save_db=True, open_mkt=True):
-    res = pd.DataFrame()
+    # res = pd.DataFrame()
+    res = []
     if open_mkt:
         ind = 11
     else:
@@ -139,11 +140,13 @@ def ak_today_auctions(ts_codes, save_db=True, open_mkt=True):
             stock_zh_a_hist_pre_min_em_df = ak.stock_zh_a_hist_pre_min_em(symbol=code)
             stock_zh_a_hist_pre_min_em_df.columns = ['time', 'open', 'close', 'high', 'low', 'auc_vol', 'auc_amt', 'latest']
             stock_zh_a_hist_pre_min_em_df.loc[:,'ts_code'] = ts_code
-            res = res.append(stock_zh_a_hist_pre_min_em_df.loc[ind])
+            # res = res.append(stock_zh_a_hist_pre_min_em_df.loc[ind])
+            res.append(stock_zh_a_hist_pre_min_em_df.iloc[ind:ind+1])
         except Exception as e:
             print(e)
             print(f'Trying get {code} got error.')
 
+    res = pd.concat(res)
     res.loc[:,'trade_date'] = res['time'].apply(lambda t: t.split(' ')[0])
     res.loc[:, 'auc_amt'] = res.auc_amt/1000 # 金额单位改为k
     res.loc[:, 'auc_vol'] = res.auc_vol/10   # 手改为千股
