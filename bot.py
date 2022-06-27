@@ -341,6 +341,8 @@ def send_notification(res, strategy):
         wechat_bot.send_image(out_image)
         logger.info(f'{len(res)} results has been sent.')
         logger.debug(res[preview_cols])
+    else:
+        wechat_bot.send_text(f'Strategy {strategy} got nothing on {end_date}.')
 
 
 if __name__ == '__main__':
@@ -350,5 +352,9 @@ if __name__ == '__main__':
     start_date = options.start_date if options.start_date else biquater_ago_date
     end_date = options.end_date if options.end_date else tdu_end_date
 
-    task = Bot(start_date=start_date, end_date=end_date, task_name=options.task_name, verbose=options.verbose)
-    task.perform()
+    if (today_date != end_date) and (today_date not in tdu.future_trade_days(start_date=end_date)):
+        # not trading day
+        pass
+    else:
+        task = Bot(start_date=start_date, end_date=end_date, task_name=options.task_name, verbose=options.verbose)
+        task.perform()
