@@ -12,20 +12,24 @@ from utils.psql_client import *
 from utils.stock_filter import *
 from utils.stock_utils import *
 from utils.strategy import *
-from utils.notifiers import *
+from utils.type_helpers import *
+from utils.notifiers import wechat_bot
 from utils.logger import *
 from utils.argparser import bot_options
-from utils.datetimes import all_trade_days, today_date, week_ago_date, trade_day_util as tdu
+from utils.datetimes import all_trade_days, today_date, week_ago_date, next_date, trade_day_util as tdu
 
 from data_center import clean_cache_files
 from data_tasks import *
 
+import dataframe_image as dfi
+
 
 preview_cols = [
-    'name', 'plate_name', 'close', 'ma_close_60', 'pct_chg', 'conseq_up_num', 'up_type',
-    'open_times',
-    # 'strth', 'last_time', 'first_time', 'fc_ratio', 'fl_ratio',
-    'circ_mv', 'total_mv', 'turnover_rate_f', 'vol_ratio', 'amount', 'dde', 'dde_amt',
+    'name', 'plate_name', 'close', 'ma_close_60', # 'pct_chg',
+    'conseq_up_num', 'up_type',
+    # 'open_times','strth', 'last_time', 'first_time', 'fc_ratio', 'fl_ratio',
+    'circ_mv', 'total_mv', 'turnover_rate_f', 'vol_ratio', 'amount',
+    # 'dde', 'dde_amt',
 ]
 
 preview_noup_cols = [
@@ -39,6 +43,10 @@ slim_cols = [
 ]
 review_cols = slim_cols + ['next_auc_amt', 'next_auc_pvol_ratio', 'next_open_pct', 'next_pct_chg']
 
+notification_cols = [
+    'name', 'plate_name', 'close', 'conseq_up_num',
+    'circ_mv', 'turnover_rate_f', 'vol_ratio', 'amount'
+]
 
 def refine_variables(df, stra):
     rules = stra.rules
@@ -81,6 +89,10 @@ class Bot():
         self.task()
 
 
+    def prep_data(self):
+        pass
+
+
     def before_mkt(self):
         box_stra.rules['conseq_up_num'] = [{'op': '=', 'val': 1}] # remove list_days stra
         logger.debug(box_stra.rules)
@@ -88,36 +100,38 @@ class Bot():
         logger.info(f'Found {len(res)}')
         res.sort_values('turnover_rate_f', inplace=True)
         res = res.join(self.top_cons)
-        display(res[preview_cols])
-        logger.info(res.name)
+        send_notification(res, strategy='BOX')
 
 
     def open_mkt(self):
         up_auc_vol_stra = Strategy(name='up & auc', stock_filter=StockFilter(end_date).not_st().tui(anti=True).zb())
+        up_stra.rules['conseq_up_num'] = [{'op': '>=', 'val': 1}, {'op': '<=', 'val': 3}] # remove list_days stra
         up_auc_vol_stra.merge_other(up_stra)
         df2, a = up_auc_vol_stra.get_result(df=self.df, trade_date=end_date)
-        df2 = df2.join(top_cons)
+        df2 = df2.join(self.top_cons)
         logger.info(f'Get {len(df2)} records from 1st filter...')
 
         while True:
-            sleep(5)
             now = pdl.now()
-            if now.hour() > 9 and now.minute() >= 25 and now.second() >= 10:
+            logger.debug(f'{now.hour}:{now.minute}:{now.second}')
+            if now.hour >= 9 and now.minute >= 25 and now.second >= 8:
+                logger.info('Start pulling auction data...')
                 # 获取竞价数据（Run this after trading day 9:25）
                 auc = ak_today_auctions(ts_codes=df2.index)
                 auc1 = auc.rename(columns={'auc_amt':'next_auc_amt', 'open':'next_open'}).droplevel('trade_date')[['next_auc_amt','next_open']]
 
                 # 合并竞价数据
-                df3 = df2.drop(columns=['next_auc_amt']).join(auc1)
-                df3.next_open_pct = round((df3.next_open/df3.close-1)*100, 2)
+                df3 = df2.join(auc1)
+                df3.loc[:, 'next_open_pct'] = round((df3.next_open/df3.close-1)*100, 2)
                 df3.loc[:, 'next_auc_pvol_ratio'] = round(df3.next_auc_amt/df3.amount, 3)
 
                 # 得到最终数据
                 up_auc_vol_stra.merge_other(auc_stra)
                 df4, a = up_auc_vol_stra.get_result(df=df3)
                 logger.info(f'AUC strategy got {len(df4)} records.')
-                display(df4[review_cols].sort_values('next_auc_pvol_ratio', ascending=False))
+                send_notification(df4, strategy='AUC')
                 break
+            sleep(5)
 
 
     def close_mkt(self):
@@ -222,13 +236,13 @@ def slim_init(start_date, end_date, expire_days=30):
         )
         logger.debug(f'{len(df)} df Memory after join: {df.memory_usage(deep=True)}')
 
-        del mf
-        del upstop
-        del stk_basic
-        del auctions
-        gc.collect()
+        # del mf
+        # del upstop
+        # del stk_basic
+        # del auctions
+        # gc.collect()
 
-        df = StockFilter(end_date).tui(anti=True).st(anti=True).filter(df)
+        df = StockFilter(end_date).tui(anti=True).not_st().filter(df)
 
         logger.debug(f'{len(df)} df Memory after join: {df.memory_usage(deep=True)}')
 
@@ -272,7 +286,7 @@ def slim_init(start_date, end_date, expire_days=30):
         # df.loc[:, 'vol_ratio'] = df.vol / df.ma_vol_5
         logger.debug(f'df Memory: {df.memory_usage(deep=True)}')
  
-        gc.collect()
+        # gc.collect()
 
         # 计算 bar type
         # logger.info('Calculating bar_type...')
@@ -302,9 +316,31 @@ def slim_init(start_date, end_date, expire_days=30):
         expire_date = pdl.today().add(days=expire_days).to_date_string()
         df_file_path = f'{ROOT_PATH}/tmp/price_{start_date}_{end_date}_{expire_date}_slim.feather'
 
-        df.reset_index().to_feather(df_file_path)
+        df.reset_index(inplace=True)
+        df.to_feather(df_file_path)
+        df.set_index(['ts_code', 'trade_date'], inplace=True)
 
     return df
+
+
+def df_to_text(df):
+    txt = []
+    for raw in df.iterrows():
+        row = raw[1]
+        txt.append(f'[{row.name}][{row["name"]}] {merge_text_list(row.plate_name)}, {int(row.conseq_up_num)}板 ({row.up_type})，流值{round(row.circ_mv/10000, 2)}亿，量比{round(row.vol_ratio,2)}，{round(row.amount/100000, 2)}亿，trf{round(row.turnover_rate_f,0)}%')
+    return "\n".join(txt)
+
+
+def send_notification(res, strategy):
+    if len(res) > 0:
+        styled_res = style_full_df(res[preview_cols])
+        logger.info(res.name)
+        out_image = f'./output/{strategy_{next_date}.png'
+        dfi.export(styled_res, out_image)
+        wechat_bot.send_text(df_to_text(res))
+        wechat_bot.send_image(out_image)
+        logger.info(f'{len(res)} results has been sent.')
+        logger.debug(res[preview_cols])
 
 
 if __name__ == '__main__':

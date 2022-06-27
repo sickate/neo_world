@@ -22,3 +22,9 @@ def subtract(a, b):
 def intersection(lst1, lst2):
     return [value for value in lst1 if value in lst2]
 
+
+def merge_text_list(lst):
+    if isinstance(lst, str):
+        return '+'.join(set(map(lambda c: c.strip(), lst.split(','))))
+    else:
+        return 'NA'

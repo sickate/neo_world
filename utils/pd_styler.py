@@ -71,7 +71,7 @@ def style_df(df):
     )
 
 
-def display_up_df(df):
+def style_full_df(df):
     cmpct = sns.diverging_palette(240, 10, as_cmap=True)
     cmo = sns.light_palette("orange", as_cmap=True)
 
@@ -123,7 +123,7 @@ def display_up_df(df):
     int_cols = intersection(df.columns, ['open_times', '连板数', '前日连板数', ])
 
     # return df
-    display(
+    df_styled = (
         df.style.format('{:.2f}亿',  subset=money_cols)
                 .format('{:.1f}万手', subset=vol_cols)
                 .format('{:.0f}', subset=int_cols)
@@ -136,6 +136,11 @@ def display_up_df(df):
                 # .format('{:.2f}%', subset=['流动换手率', '板块涨幅', '涨幅', '开盘涨幅', '次日涨幅', 'c_v_o', 'pre_trf'])
                 # .background_gradient(cmap=cmpct, subset=['板块涨幅', '涨幅', '开盘涨幅', '次日涨幅'])
     )
+    return df_styled
+
+
+def display_up_df(df):
+    display(style_full_df(df))
     return None
 
 
