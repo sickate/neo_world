@@ -53,6 +53,7 @@ chart_studio
 colorama>=0.4.4
 bokeh
 seaborn
+dataframe-image # turn styled df to image
 
 ipympl # for jupyter ipython support
 nodejs
