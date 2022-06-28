@@ -23,6 +23,9 @@ from data_tasks import *
 
 import dataframe_image as dfi
 
+import warnings
+warnings.simplefilter(action='ignore')
+
 
 preview_cols = [
     'name', 'plate_name', 'close', 'ma_close_60', # 'pct_chg',
@@ -38,10 +41,12 @@ preview_noup_cols = [
 ]
 
 slim_cols = [
-    'name', 'plate_name', 'close', 'open_pct', 'pct_chg', 'conseq_up_num', 'up_type',
+    'name', 'plate_name', 'close', 'pct_chg', 'conseq_up_num', 'up_type',
     'circ_mv', 'total_mv', 'turnover_rate_f', 'vol_ratio', 'amount', 'dde', 'dde_amt',
 ]
 review_cols = slim_cols + ['next_auc_amt', 'next_auc_pvol_ratio', 'next_open_pct', 'next_pct_chg']
+
+auc_preview_cols = preview_cols + ['next_auc_amt', 'next_auc_pvol_ratio', 'next_open_pct']
 
 notification_cols = [
     'name', 'plate_name', 'close', 'conseq_up_num',
@@ -100,7 +105,7 @@ class Bot():
         logger.info(f'Found {len(res)}')
         res.sort_values('turnover_rate_f', inplace=True)
         res = res.join(self.top_cons)
-        send_notification(res, strategy='BOX')
+        send_notification(res[preview_cols], strategy='BOX')
 
 
     def open_mkt(self):
@@ -129,7 +134,7 @@ class Bot():
                 up_auc_vol_stra.merge_other(auc_stra)
                 df4, a = up_auc_vol_stra.get_result(df=df3)
                 logger.info(f'AUC strategy got {len(df4)} records.')
-                send_notification(df4, strategy='AUC')
+                send_notification(df4[auc_preview_cols], strategy='AUC')
                 break
             sleep(5)
 
@@ -146,15 +151,16 @@ class Bot():
 
         stra_zha.stock_filter = StockFilter(end_date).not_st().tui(anti=True).zb()
         zha_df, a = stra_zha.get_result(df=self.df, trade_date=end_date)
-        zha_df = zha_df.join(top_cons)
-        display_up_df(zha_df[slim_cols])
+        zha_df = zha_df.join(self.top_cons)
+        logger.info(f'Zha Strategy got {len(zha_df)} records at last EOD.')
+        logger.debug(df_to_text(zha_df, prefix_newline=True))
 
         # 获取竞价数据（Run this after trading day 9:25）
         zha_auc = ak_today_auctions(ts_codes=zha_df.index)
         zha_auc = zha_auc.rename(columns={'auc_amt':'next_auc_amt', 'open':'next_open'}).droplevel('trade_date')[['next_auc_amt','next_open']]
 
         # 合并竞价数据
-        zha_df = zha_df.drop(columns=['next_auc_amt']).join(zha_auc)
+        zha_df = zha_df.join(zha_auc)
         zha_df.loc[:, 'next_open_pct'] = round((zha_df.next_open/zha_df.close-1)*100, 2)
         zha_df.loc[:, 'next_auc_pvol_ratio'] = round(zha_df.next_auc_amt/zha_df.amount, 3)
 
@@ -163,18 +169,19 @@ class Bot():
         # 得到最终数据
         zha_df_open, a = stra_zha.get_result(df=zha_df)
         logger.info(f'Zha Strategy got {len(zha_df_open[slim_cols])} records after Open')
-        # display(zha_df_open[slim_cols])
+        logger.debug(df_to_text(zha_df_open, prefix_newline=True))
 
+        logger.info('Waiting for close market auction data...')
         while True:
             sleep(5)
             now = pdl.now()
-            if now.hour() > 14 and now.minute() >= 57 and now.second() > 10:
+            if now.hour >= 14 and now.minute >= 57 and now.second >= 10:
                 # 获取收盘前数据
                 zha_close = ak_today_auctions(ts_codes=zha_df_open.index, open_mkt=False)
                 zha_close = zha_close.rename(columns={'close':'next_close'}).droplevel('trade_date')[['next_close']]
 
                 # 合并竞价数据
-                zha_df_close = zha_df_open.drop(columns=['next_pct_chg']).join(zha_close)
+                zha_df_close = zha_df_open.join(zha_close)
                 zha_df_close.loc[:, 'next_pct_chg'] = round((zha_df_close.next_close/zha_df_close.close-1)*100, 2)
 
                 stra_zha.add_condition('next_pct_chg', '<', val=-5)
@@ -182,8 +189,8 @@ class Bot():
 
                 # 得到最终数据
                 zha_df_res, a = stra_zha.get_result(df=zha_df_close)
-                logger.info(f'AUC strategy got {len(zha_df_res)} records.')
-                display(zha_df_res[slim_cols].sort_values('next_auc_pvol_ratio', ascending=False))
+                logger.info(f'Zha strategy got {len(zha_df_res)} records.')
+                send_notification(zha_df_res[slim_cols], strategy='Zha')
                 break
 
 
@@ -323,8 +330,10 @@ def slim_init(start_date, end_date, expire_days=30):
     return df
 
 
-def df_to_text(df):
+def df_to_text(df, prefix_newline=False):
     txt = []
+    if prefix_newline:
+        txt.append("")
     for raw in df.iterrows():
         row = raw[1]
         txt.append(f'[{row.name}][{row["name"]}] {merge_text_list(row.plate_name)}, {int(row.conseq_up_num)}板 ({row.up_type})，流值{round(row.circ_mv/10000, 2)}亿，量比{round(row.vol_ratio,2)}，{round(row.amount/100000, 2)}亿，trf{round(row.turnover_rate_f,0)}%')
@@ -333,14 +342,14 @@ def df_to_text(df):
 
 def send_notification(res, strategy):
     if len(res) > 0:
-        styled_res = style_full_df(res[preview_cols])
+        styled_res = style_full_df(res)
         logger.info(res.name)
         out_image = f'./output/{strategy}_{next_date}.png'
         dfi.export(styled_res, out_image)
         wechat_bot.send_text(df_to_text(res))
         wechat_bot.send_image(out_image)
         logger.info(f'{len(res)} results has been sent.')
-        logger.debug(res[preview_cols])
+        logger.debug(res)
     else:
         wechat_bot.send_text(f'Strategy {strategy} got nothing on {end_date}.')
 

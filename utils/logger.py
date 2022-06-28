@@ -16,3 +16,6 @@ logger.addHandler(stream_handler)
 logger.addHandler(file_handler)
 
 logger.setLevel(logging.INFO) # default, can be overried by other files
+
+logging.getLogger("pyactiveresource").setLevel(logging.ERROR)
+logging.getLogger("urllib3").setLevel(logging.ERROR)
