@@ -75,6 +75,8 @@ def style_df(df):
 
 
 def style_full_df(df):
+    if len(df) == 0:
+        return df
     cmpct = sns.diverging_palette(240, 10, as_cmap=True)
     cmo = sns.light_palette("orange", as_cmap=True)
 
@@ -136,7 +138,7 @@ def style_full_df(df):
                 .format('{:.3f}', subset=float_3_cols)
                 .format('{:.2f}', subset=float_2_cols)
                 .format('{:.2f}%', subset=pct_cols)
-                .background_gradient(cmap=cmpct, subset=grad_ct_cols) #, vmin=-11, vmax=11)
+                .background_gradient(cmap=cmpct, subset=grad_ct_cols, vmin=-11, vmax=11)
                 .background_gradient(cmap=cmo, subset=grad_o_cols)
                 .background_gradient(cmap=cmo, subset=float_3_cols) #, vmin=0.02, vmax=0.5)
     )

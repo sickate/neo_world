@@ -134,7 +134,7 @@ class Bot():
                 up_auc_vol_stra.merge_other(auc_stra)
                 df4, a = up_auc_vol_stra.get_result(df=df3)
                 logger.info(f'AUC strategy got {len(df4)} records.')
-                send_notification(df4[auc_preview_cols], strategy='AUC')
+                send_notification(df4[auc_preview_cols].sort_values('next_auc_pvol_ratio', ascending=False), strategy='AUC')
                 break
             sleep(5)
 
@@ -363,7 +363,7 @@ if __name__ == '__main__':
 
     if (today_date != end_date) and (today_date not in tdu.future_trade_days(start_date=end_date)):
         # not trading day
-        pass
+        wechat_bot.send_text('Today is not a trading day. Have fun! ({today_date})')
     else:
         task = Bot(start_date=start_date, end_date=end_date, task_name=options.task_name, verbose=options.verbose)
         task.perform()
