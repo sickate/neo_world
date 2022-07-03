@@ -363,7 +363,7 @@ if __name__ == '__main__':
 
     if (today_date != end_date) and (today_date not in tdu.future_trade_days(start_date=end_date)):
         # not trading day
-        wechat_bot.send_text('Today is not a trading day. Have fun! ({today_date})')
+        wechat_bot.send_text(f'[{today_date}] Today is not a trading day. Have fun!')
     else:
         task = Bot(start_date=start_date, end_date=end_date, task_name=options.task_name, verbose=options.verbose)
         task.perform()

@@ -10,7 +10,7 @@ from utils.argparser import data_params_wrapper
 from utils.stock_utils import *
 from utils.psql_client import load_table, insert_df, get_stock_basic
 from utils.datasource import ts, pro, ak, ak_all_plates, ak_today_auctions
-from utils.datetimes import biquater_ago_date
+from utils.datetimes import biquater_ago_date, end_date as tdu_end_date, today_date as tdu_today_date
 from models import *
 from data_center import DataCenter, init_data
 # from models.daily_basic import DailyBasic

@@ -80,10 +80,12 @@ def style_full_df(df):
     cmpct = sns.diverging_palette(240, 10, as_cmap=True)
     cmo = sns.light_palette("orange", as_cmap=True)
 
-    df.loc[:,'circ_mv']=df.circ_mv/10000
+    if 'circ_mv' in df.columns.to_list():
+        df.loc[:,'circ_mv']=df.circ_mv/10000
     if 'total_mv' in df.columns.to_list():
         df.loc[:,'total_mv']=df.total_mv/10000
-    df.loc[:,'amount']=df.amount/100000
+    if 'amount' in df.columns.to_list():
+        df.loc[:,'amount']=df.amount/100000
     if 'fd_amount' in df.columns.to_list():
         df.loc[:,'fd_amount']=df.fd_amount/100000000
     if 'pre_amount' in df.columns.to_list():
