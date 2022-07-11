@@ -9,7 +9,7 @@ from utils.argparser import data_params_wrapper
 # from utils.datasource import *
 from utils.stock_utils import *
 from utils.psql_client import load_table, insert_df, get_stock_basic
-from utils.datasource import ts, pro, ak, ak_all_plates, ak_today_auctions
+from utils.datasource import ts, pro, ak, ak_all_plates, ak_today_auctions, ak_activity
 from utils.datetimes import biquater_ago_date, end_date as tdu_end_date, today_date as tdu_today_date
 from models import *
 from data_center import DataCenter, init_data
@@ -569,6 +569,9 @@ def check_data_integrity(start_date=None, end_date=None, tables=None, try_fix=Tr
 
     print("Updating plates data...")
     ak_all_plates(use_cache=False)
+
+    print('Get emo')
+    ak_activity(save=True)
 
     # print("Starts to pre-process data...")
     # init_data(biquater_ago_date, end_date, expire_days=5)
