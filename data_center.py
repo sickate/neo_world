@@ -6,6 +6,8 @@ from models import *
 from utils.stock_utils import *
 from utils.stock_filter import *
 from utils.psql_client import *
+from utils.datetimes import trade_day_util as tdu
+from utils.datasource import ak_stock_basics
 from utils.logger import logger
 
 
@@ -13,7 +15,7 @@ class DataCenter:
     def __init__(self, start_date, end_date, trade_days=None, stock_list=None):
         self.start_date = start_date
         self.end_date = end_date
-        self.trade_days = tdu.past_trade_days(end_date) if trade_days is None else trade_days
+        self.trade_days = tdu.trade_days_between(start_date, end_date)
         if stock_list:
             stocks = get_stock_basic(end_date)
             self.stock_list = stocks[stocks.index.isin(stock_list)]
@@ -25,6 +27,13 @@ class DataCenter:
         self.upstops = None
         self.auctions = None
         self.dfall = None
+
+
+    def get_auctions(self, force_refresh=False):
+        if self.auctions is None or force_refresh:
+            auctions = load_table(Auction, self.start_date, self.end_date)
+            self.auctions = auctions.sort_index()
+        return self.auctions
 
 
     def get_money_flow(self, force_refresh=False):
@@ -43,11 +52,6 @@ class DataCenter:
                 self.price = StockFilter(self.end_date, self.stock_list).hs().filter(self.price)
             self.price = gen_price_data(self.price)
 
-            # TODO: finalized it
-            # calc more attributes
-            # open_pct: 开盘集合竞价涨幅
-            self.price.loc[:, 'open_pct'] = (self.price.open - self.price.pre_close)/self.price.pre_close * 100
-            self.price.loc[:, 'next_open_pct'] = self.price.groupby(level='ts_code').open_pct.shift(-1)
             self.price = calc_vol_types(self.price, mavgs=[5,20])
 
             self.price.sort_index(inplace=True)
@@ -56,20 +60,18 @@ class DataCenter:
 
     def get_stock_basics(self, force_refresh=False):
         if self.stock_basics is None or force_refresh:
-            self.stock_basics = read_pg(table=StockBasic.__tablename__).set_index('ts_code')
-            self.stock_basics.loc[:,'list_date'] = self.stock_basics.list_date.map(str).apply(lambda x: x[0:4]+'-'+x[4:6]+'-'+x[-2:])
+            self.stock_basics = ak_stock_basics()
             if self.stock_list is not None:
                 self.stock_basics = StockFilter(self.end_date, self.stock_list).hs().filter(self.stock_basics)
-                # self.stock_basics = filter_bad(self.stock_basics, self.stock_list)
         return self.stock_basics
 
 
     def get_upstops(self, force_refresh=False, slim=False):
         if self.upstops is None or force_refresh:
-            upstops = load_table(UpStop, self.start_date, self.end_date)
+            upstops = load_table(LimitStock, self.start_date, self.end_date)
             self.upstops = upstops.sort_index().drop(columns=['name'])
         if slim:
-            return self.upstops[['amp','fc_ratio','fl_ratio','fd_amount','first_time', 'last_time', 'open_times', 'strth', 'limit']]
+            return self.upstops[['fd_amount','first_time', 'last_time', 'open_times', 'up_stat', 'limit', 'conseq_up_num', 'conseq_dn_num']]
         else:
             return self.upstops
 
@@ -85,7 +87,7 @@ class DataCenter:
         print('Merging all data...')
         stk_basic = self.get_stock_basics()
         price = self.get_price()
-        upstop = self.get_upstops()
+        upstop = self.get_upstops(slim=True)
         mf = self.get_money_flow()
         df_init = price.join(mf).join(upstop.drop(columns=['pct_chg', 'close'])).join(stk_basic[['name', 'list_date']])
         df_init = df_init[~df_init.list_date.isna()] # remove already 退市的
@@ -109,8 +111,8 @@ class DataCenter:
         # df_init['list_date'] = df_init.list_date.apply(lambda x: x[0:4]+'-'+x[4:6]+'-'+x[-2:])
         df_init['cur_date'] = df_init.index.get_level_values('trade_date').map(lambda x: x.strftime('%Y-%m-%d'))
         tmp = df_init.loc[df_init.groupby('ts_code').head(1).index]
-        tmp['list_days'] = tmp.cur_date.map(lambda x: self.trade_days.index(x)) - \
-                           tmp.list_date.map(lambda x: self.trade_days.index(x)) + 1
+        tmp['list_days'] = tmp.cur_date.map(lambda x: tdu.past_trade_days().index(x)) - \
+                           tmp.list_date.map(lambda x: tdu.past_trade_days().index(x)) + 1
         df_init['list_days'] = tmp['list_days']
         df_init.list_days.fillna(1, inplace=True)
         df_init.list_days = df_init.groupby('ts_code').list_days.cumsum()

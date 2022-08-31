@@ -275,7 +275,8 @@ def plot_emo_trend(df):
         ]
     )
     fig.update_layout(height=600, title_text="Emotions")
-    fig.show()
+    # fig.show()
+    return fig
 
 
 ###########################################

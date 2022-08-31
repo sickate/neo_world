@@ -63,7 +63,7 @@ class TradeDays():
         return self.__all_trade_days__
 
 
-    def trade_days_between(self, start_date, end_date, open_range=True):
+    def trade_days_between(self, start_date, end_date, open_range=False):
         trade_days = self.all_trade_days()
         if open_range:
             return list(filter(lambda t: (t > start_date) and (t <= end_date), trade_days))
@@ -99,7 +99,7 @@ class TradeDays():
 # DateTime Utils
 trade_day_util = TradeDays()
 today = pdl.now()
-if today.to_date_string() == trade_day_util.past_trade_days()[-1] and today.hour < 18:
+if today.to_date_string() == trade_day_util.past_trade_days()[-1] and today.hour < 15:
     end_date = trade_day_util.past_trade_days()[-2]
 else:
     end_date = trade_day_util.past_trade_days()[-1]

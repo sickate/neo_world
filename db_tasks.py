@@ -4,7 +4,7 @@ from models import *
 from utils.datetimes import daterange
 from utils.argparser import data_params_wrapper
 
-MODELS = [DailyBasic, Price, StockBasic, AdjFactor, Money, Order, UpStop]
+MODELS = [DailyBasic, Price, StockBasic, AdjFactor, Money, Order, UpStop, Index]
 
 @data_params_wrapper
 def init_db():

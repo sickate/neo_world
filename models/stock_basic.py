@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, Date, Float
+from sqlalchemy import Column, Integer, String, Boolean, Date, Float, UniqueConstraint
 from sqlbase import Base
 
 class StockBasic(Base):
@@ -26,3 +26,4 @@ class StockBasic(Base):
     is_hs = Column(String(3)) # 沪深港通标的，N否 H沪股通 S深股通
 
 
+    __table_args__ = (UniqueConstraint('ts_code', name='_stock_basic_uniq'),)

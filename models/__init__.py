@@ -8,12 +8,12 @@ from .order import Order
 from .dragon import Dragon
 from .activity import Activity
 from .auction import Auction
-from .daily_tick import DailyTick
 from .plate import Plate
+from .index import Index
+from .limit_stock import LimitStock
 
 # from .memo import Memo
 # from .trade_note import TradeNote
-# from .index import Index
 
 
 from sqlbase import Base

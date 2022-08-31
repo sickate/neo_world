@@ -9,7 +9,7 @@ class Plate(Base):
 
     id = Column(Integer, primary_key=True)
     plate_type = Column(String(8))
-    name = Column(String(12), index=True)
+    name = Column(String(16), index=True)
     trade_date = Column(Date, index=True)
 
     upstop_stocks = Column(ARRAY(String))

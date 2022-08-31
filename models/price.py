@@ -16,9 +16,8 @@ class Price(Base):
     pre_close = Column(Float(precision=2, asdecimal=True))       # 前日收盘
     change = Column(Float(precision=2, asdecimal=True))          # 价格变动
     pct_chg = Column(Float(precision=4, asdecimal=True))         # 涨跌幅
-    vol = Column(Float(precision=2, asdecimal=True))             # 成交量, 单位千股
-    amount = Column(Float(precision=3, asdecimal=True))          # 成交额，单位千元
-
+    vol = Column(Float(precision=2, asdecimal=True))             # 成交量, 单位手
+    amount = Column(Float(precision=3, asdecimal=True))          # 成交额，单位元
 
     def __init__(self, ts_code, trade_date, open_, high, low, close, pre_close, change, pct_chg, vol, amount):
         self.ts_code = ts_code

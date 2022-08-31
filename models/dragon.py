@@ -4,6 +4,7 @@ from sqlbase import Base
 
 class Dragon(Base):
     """
+    TODO: USE AK
     name	str	Y	名称
     close	float	Y	收盘价
     pct_change	float	Y	涨跌幅

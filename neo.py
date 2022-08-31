@@ -37,20 +37,16 @@ def db_tasks(task):
 
 def data_tasks(task):
     funcs = {
-            'price': fetch_prices,
-            'money': fetch_money,
-            # 'index': fetch_indices,
-            'ticks': fetch_ticks,
-            'daily_basic': fetch_daily_basic,
-            'stock_basic': fetch_stock_basics,
-            'stock_share': fetch_stock_shares,
             'auction': fetch_ak_auctions,
-            'adj_factor': fetch_adj_factor,
-            'adj_price': fetch_adj_price,
-            'upstop': fetch_upstops,
+            'price': fetch_ak_prices,
+            'upstop': fetch_ak_limits,
+            'stock_basic': fetch_stock_basics,
+            'index': fetch_indices,
+            'daily_basic': fetch_daily_basic,
+            # 'money': fetch_money,
+
             'info': show_data_status,
             'check': check_data_integrity,
-            'profits': show_daily_profits,
         }
     return funcs.get(task, method_not_exist)
 

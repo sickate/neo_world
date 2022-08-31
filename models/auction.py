@@ -13,8 +13,8 @@ class Auction(Base):
     open_ = Column('open', Float(precision=2, asdecimal=True))    # 开盘价
     pre_close = Column(Float(precision=2, asdecimal=True))        # 前日收盘
     open_pct = Column(Float(precision=2, asdecimal=True))         #
-    auc_vol = Column(Float(precision=2, asdecimal=True))          # 成交量, 单位千股
-    auc_amt = Column(Float(precision=3, asdecimal=True))          # 成交额，单位千元
+    auc_vol = Column(Float(precision=2, asdecimal=True))          # 成交量, 单位手
+    auc_amt = Column(Float(precision=3, asdecimal=True))          # 成交额，单位元
 
 
     def __init__(self, ts_code, trade_date):

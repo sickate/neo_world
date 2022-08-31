@@ -22,38 +22,27 @@ class DailyBasic(Base):
     ps_ttm = Column(Float(precision=4, asdecimal=True))          # 市销率（TTM）
     dv_ratio = Column(Float(precision=4, asdecimal=True))        # float 股息率 （%）
     dv_ttm = Column(Float(precision=4, asdecimal=True))          # 股息率（TTM）（%）
-    total_share = Column(Float(precision=2, asdecimal=True))         # 总股本 （万股）
-    float_share = Column(Float(precision=4, asdecimal=True))         # 流通股本 （万股）
-    free_share = Column(Float(precision=4, asdecimal=True))         # 自由流通股本 （万）
-    total_mv = Column(Float(precision=4, asdecimal=True))         # 总市值 （万元）
-    circ_mv = Column(Float(precision=4, asdecimal=True))         # 流通市值（万元）
+    total_share = Column(Float(precision=2, asdecimal=True))     # 总股本 （手）
+    float_share = Column(Float(precision=4, asdecimal=True))     # 流通股本 （手）
+    free_share = Column(Float(precision=4, asdecimal=True))      # 自由流通股本 （手）
+    total_mv = Column(Float(precision=4, asdecimal=True))        # 总市值 （元）
+    circ_mv = Column(Float(precision=4, asdecimal=True))         # 流通市值（元）
+    free_mv = Column(Float(precision=4, asdecimal=True))         # 自由流通市值（元）
+    ma_close_250 = Column(Float(precision=2, asdecimal=True))    # 流通市值（元）
 
+    # only need following
+    # turnover_rate
+    # trf
+    # total_share
+    # float_share
+    # free_share
+    # total_mv
+    # circ_mv
+    # ma_close_250
 
-    def __init__(self, ts_code, trade_date, close, turnover_rate, turnover_rate_f, volume_ratio, pe, pe_ttm, pb, ps, ps_ttm, dv_ratio, dv_ttm, total_share, float_share, free_share, total_mv, circ_mv):
+    def __init__(self, ts_code, trade_date):
         self.ts_code = ts_code
         self.trade_date = trade_date
-        self.close = close
-        self.turnover_rate = turnover_rate
-        self.turnover_rate_f = turnover_rate_f
-        self.volume_ratio = volume_ratio
-        self.pre_close = pre_close
-        self.change = change
-        self.pct_chg = pct_chg
-        self.vol = vol
-        self.amount = amount
-        self.pe = pe
-        self.pe_ttm = pe_ttm
-        self.pb = pb
-        self.ps = ps
-        self.ps_ttm  = ps_ttm
-        self.dv_ratio = dv_ratio
-        self.dv_ttm = dv_ttm
- 
-        self.total_share = total_share
-        self.float_share = float_share
-        self.free_share = free_share
-        self.total_mv = total_mv
-        self.circ_mv = circ_mv
 
 
     def __repr__(self):

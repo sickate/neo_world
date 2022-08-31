@@ -81,23 +81,23 @@ def style_full_df(df):
     cmo = sns.light_palette("orange", as_cmap=True)
 
     if 'circ_mv' in df.columns.to_list():
-        df.loc[:,'circ_mv']=df.circ_mv/10000
+        df.loc[:,'circ_mv']=df.circ_mv/100000000
     if 'total_mv' in df.columns.to_list():
-        df.loc[:,'total_mv']=df.total_mv/10000
+        df.loc[:,'total_mv']=df.total_mv/100000000
     if 'amount' in df.columns.to_list():
-        df.loc[:,'amount']=df.amount/100000
+        df.loc[:,'amount']=df.amount/100000000
     if 'fd_amount' in df.columns.to_list():
         df.loc[:,'fd_amount']=df.fd_amount/100000000
     if 'pre_amount' in df.columns.to_list():
-        df.loc[:,'pre_amount']=df.pre_amount/100000
+        df.loc[:,'pre_amount']=df.pre_amount/100000000
     if 'vol' in df.columns.to_list():
         df.loc[:,'vol']=df.vol/10000
     if 'auc_amt' in df.columns.to_list():
-        df.loc[:,'auc_amt']=df.auc_amt/100000
+        df.loc[:,'auc_amt']=df.auc_amt/100000000
     if 'dde_amt' in df.columns.to_list():
-        df.loc[:,'dde_amt']=df.dde_amt/100000
+        df.loc[:,'dde_amt']=df.dde_amt/100000000
     if 'next_auc_amt' in df.columns.to_list():
-        df.loc[:,'next_auc_amt']=df.next_auc_amt/100000
+        df.loc[:,'next_auc_amt']=df.next_auc_amt/100000000
     # df.avg_pct_chg.fillna(0, inplace=True)
     df = df.rename(columns={
         'turnover_rate_f': '流动换手率',

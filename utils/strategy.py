@@ -196,8 +196,8 @@ box_stra.add_condition('close', '<', var='min_pre120_price', ratio=1.9)
 vol_stra=Strategy(name='vol & up')
 vol_stra.add_condition('conseq_up_num', '>=', val=1)
 vol_stra.add_condition('conseq_up_num', '<=', val=3)
-vol_stra.add_condition('amount',  '<', val=1500000) # 15亿，unit: k
-vol_stra.add_condition('circ_mv', '<', val=800000) # 80亿，unit: w
+vol_stra.add_condition('amount',  '<', val=15_0000_0000) # 15亿，unit: k
+vol_stra.add_condition('circ_mv', '<', val=80_0000_0000) # 80亿，unit: w
 vol_stra.add_condition('turnover_rate_f', '<', val=45)
 vol_stra.add_condition('turnover_rate_f', '>=', val=7)
 vol_stra.add_condition('high', '>', var='low', ratio=1.02)
@@ -211,7 +211,7 @@ up_stra.add_condition('pct_chg', '>', val=9)
 up_stra.add_condition('conseq_up_num', '>=', val=1)
 up_stra.add_condition('conseq_up_num', '<=', val=3)
 up_stra.add_condition('conseq_up_num', '<', var='list_days')
-up_stra.add_condition('amount',  '<', val=1500000) # 15亿，unit: k
+up_stra.add_condition('amount',  '<', val=15_0000_0000) # 15亿，unit: k
 # s.add_condition('circ_mv', '<', val=1000000) # 80亿，unit: w
 up_stra.add_condition('turnover_rate_f', '<', val=45)
 up_stra.add_condition('turnover_rate_f', '>=', val=5)
@@ -228,8 +228,8 @@ auc_stra = Strategy(name='auc')
 auc_stra.add_condition('next_open_pct', '<', val=7)
 auc_stra.add_condition('next_open_pct', '>', val=2)
 auc_stra.add_condition('next_auc_amt', '>', var='amount', ratio=0.05)
-auc_stra.add_condition('next_auc_amt', '>', val=10000)
-auc_stra.add_condition('next_auc_amt', '<', val=100000)
+auc_stra.add_condition('next_auc_amt', '>', val=10000000)
+auc_stra.add_condition('next_auc_amt', '<', val=100000000)
 
 # 5. straigt Y upstops
 ###################################

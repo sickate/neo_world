@@ -29,18 +29,17 @@ else:
 # Load data from db
 #############################
 
-def get_stock_basic(today_date, basic_filter=False):
+def get_stock_basic(tdate=None, basic_filter=False):
     """
         从 pg db 获取截止当日的股票基本信息
     """
+    tdate = end_date if tdate is None else tdate
     stocks = pd.read_sql_table('stock_basic', engine)
-    if basic_filter: # with StockFilter, this can be drop
-        stocks.loc[:, 'status'] = stocks.name.apply(lambda x: 'ST' if 'ST' in x else 'TUI' if '退' in x else 'OK')
-        stocks.loc[:, 'not_new'] = stocks.list_date < pdl.parse(today_date).add(days=-20).strftime('%Y%m%d')
+    stocks = stocks[stocks.list_date <= tdate.replace('-','')]
     return stocks.set_index('ts_code')
 
 
-def load_stock_prices(start_date, end_date, ts_codes=None, fast_load=True, verbose=False):
+def load_stock_prices(start_date, end_date, ts_codes=None, fast_load=True):
     """
         从 pg db 获取一批股票在一段时内的数据, 包括：Price, DailyBasic, AdjFactor
         配合 gen_adj_price 对价格进行除权
@@ -55,8 +54,7 @@ def load_stock_prices(start_date, end_date, ts_codes=None, fast_load=True, verbo
     if ts_codes is not None:
         query_price = query_price.filter(Price.ts_code.in_(ts_codes))
 
-    if verbose:
-        logger.info(f'Start loading stock data from PG...')
+    logger.info(f'Start loading price data from PG...')
     if fast_load:
         price = read_pg(query=query_price)
     else:
@@ -73,8 +71,7 @@ def load_stock_prices(start_date, end_date, ts_codes=None, fast_load=True, verbo
     if ts_codes is not None:
         query_adjfactor = query_adjfactor.filter(AdjFactor.ts_code.in_(ts_codes))
 
-    if verbose:
-        logger.info(f'Start loading adjfactor data from PG...')
+    logger.info(f'Start loading adjfactor data from PG...')
     if fast_load:
         adjfactor = read_pg(query=query_adjfactor)
     else:
@@ -90,28 +87,31 @@ def load_stock_prices(start_date, end_date, ts_codes=None, fast_load=True, verbo
     )
     if ts_codes is not None:
         query_basic = query_basic.filter(DailyBasic.ts_code.in_(ts_codes))
-    if verbose:
-        logger.info(f'Start loading daily_basic data from PG...')
+    logger.info(f'Start loading daily_basic data from PG...')
     if fast_load:
         basic = read_pg(query=query_basic)
     else:
         basic = pd.read_sql(query_basic.statement, engine)
     basic['trade_date'] = pd.to_datetime(basic.trade_date)
+    basic.rename(columns={'volume_ratio': 'vol_ratio'}, inplace=True)
     basic.set_index(['ts_code', 'trade_date'], inplace=True)
 
     if verbose:
         logger.info(f'Merging...')
     df = price.join(adjfactor[['adj_factor']]).join(basic[['turnover_rate', 'turnover_rate_f',
-        'volume_ratio','pe', 'pe_ttm', 'total_mv', 'circ_mv', 'total_share', 'float_share', 'free_share']])
+        'vol_ratio', 'free_mv', 'total_share', 'float_share', 'free_share', 'ma_close_250']])
     return df.drop(columns='id')
 
 
-def load_table(model, start_date, end_date, ts_codes=None):
+def load_table(model, start_date, end_date, ts_codes=None, **kwargs):
     query= (
         db_session.query(model)
             .filter(model.trade_date >= start_date)
             .filter(model.trade_date <= end_date)
     )
+    for k,v in kwargs.items():
+        query = query.filter(getattr(model, k) == v)
+
     if ts_codes is not None:
         query = query.filter(getattr(model, 'ts_code').in_(ts_codes))
     if 'modin' in pd.__path__:

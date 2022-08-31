@@ -10,7 +10,7 @@ from IPython.core.display import HTML
 from sqlbase import db_session, engine
 from models import *
 
-from utils.psql_client import read_sql, read_pg, load_table
+from utils.psql_client import read_sql, read_pg, load_table, insert_df
 from utils.pd_styler import *
 from utils.plot_plotly import plot_k_plotly
 from utils.calculators import *
@@ -107,13 +107,7 @@ def calc_vol_types(df, mavgs=None):
     '''
         Generate ma_vols and vol_ratio
     '''
-    if mavgs is None:
-        mavgs = [5,10,20]
-    df = gen_ma(df, mavgs=mavgs, col='vol', add_shift=1)
-    df.loc[:, 'vol_ratio'] = df.vol / df.ma_vol_5
-    df.loc[:, 'vol_ratio_long'] = df.vol / df.ma_vol_20
     df.loc[:, 'vol_type'] = df.apply(f_set_vol_types, axis=1)
-    df.loc[:, 'pre_vol_type'] = df.groupby('ts_code').vol_type.shift(1)
     df.loc[:, 'pre_trf'] = df.groupby(level='ts_code').turnover_rate_f.shift(1)
     return df
 
@@ -468,11 +462,11 @@ def calc_plate_data(df, cons):
     tmp.loc[:, 'p5_pct_chg'] = tmp.groupby('plate_name').pct_chg.rolling(window=5).sum().values
 
     # extract top stocks into plate summary dataframe
-    top_detail = cons_detail[(cons_detail.pct_chg>=7) & (cons_detail.limit != 'U')]
+    top_detail = cons_detail[(cons_detail.pct_chg>=7) & (cons_detail.limit != 'U')].copy()
     top_detail.loc[:,'top_stocks'] = top_detail.groupby(['trade_date', 'plate_type', 'plate_name']).name.transform(lambda x : ' '.join(x))
 
     # extract upstop stocks
-    upstop_detail = cons_detail[cons_detail.limit=='U']
+    upstop_detail = cons_detail[cons_detail.limit=='U'].copy()
     upstop_detail.loc[:,'upstop_stocks'] = upstop_detail.groupby(['trade_date', 'plate_type', 'plate_name']).name.transform(lambda x : ' '.join(x))
 
     tmp = (
@@ -484,7 +478,29 @@ def calc_plate_data(df, cons):
     return con_sum, ind_sum, cons_detail
 
 
+def calc_plate_sum(plate_sum, tdate, plate_type, force_update=False):
+    '''
+    Calucate Plate summary and save to database 'plates' Table.
+    '''
+    cons_df = load_table(model=Plate, start_date=tdate, end_date=tdate, plate_type=plate_type)
+    if len(cons_df) < 200 or force_update: # not enough data, 
+        print(f'Calculating {len(plate_sum)} {plate_type} of {tdate}...')
+        cons=plate_sum.xs(tdate, level='trade_date', drop_level=False).copy()
+        cons.loc[:, 'plate_type'] = plate_type
+        cons.loc[:, 'daily_rank'] = cons.pct_chg.rank(ascending=False, axis=0).astype(int)
+        cons.loc[:, 'upstop_stocks'] =  cons.upstop_stocks.map(lambda x: x.split(' ') if isinstance(x, str) else [])
+        cons.loc[:, 'top_stocks'] =  cons.top_stocks.map(lambda x: x.split(' ') if isinstance(x, str) else [])
+        cons.reset_index(inplace=True)
+        cons.rename(columns={'plate_name': 'name'}, inplace=True)
+        cons_df = cons[['name', 'trade_date', 'plate_type', 'pct_chg', 'amount', 'daily_rank', 'upstop_num', 'up', 'dn', 'fl', 'upstop_stocks', 'top_stocks']]
+        insert_df(df=cons_df, tablename='plates')
+    return cons_df
+
+
 def calc_top_cons(cons_today, cons):
+    '''
+    Calucate top 3 plate of stocks.
+    '''
     top_cons= (
          cons_today.reset_index()[['ts_code', 'name','plate_name']]
             .merge(cons[['upstop_num', 'pct_chg', 'p5_pct_chg']], on=['plate_name'])
@@ -748,6 +764,10 @@ def f_calc_yinyang(row):
         return 'yang'
     else:
         return 'cross'
+
+
+def get_ts_code_column(df, col='code'):
+    return df[col].apply(lambda x: add_postfix(str(x)))
 
 
 if __name__ == '__main__':
