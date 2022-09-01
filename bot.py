@@ -42,7 +42,7 @@ preview_noup_cols = [
 
 slim_cols = [
     'name', 'plate_name', 'close', 'pct_chg', 'conseq_up_num', 'up_type',
-    'circ_mv', 'total_mv', 'turnover_rate_f', 'vol_ratio', 'amount', 'dde', 'dde_amt',
+    'circ_mv', 'total_mv', 'turnover_rate_f', 'vol_ratio', 'amount', # 'dde', 'dde_amt',
 ]
 review_cols = slim_cols + ['next_auc_amt', 'next_auc_pvol_ratio', 'next_open_pct', 'next_pct_chg']
 
@@ -149,7 +149,7 @@ class Bot():
         stra_zha.add_condition('open', '<', var='close', ratio=0.99)
 
         stra_zha.stock_filter = StockFilter(end_date).not_st().tui(anti=True).zb()
-        zha_df, a = stra_zha.get_result(df=self.df, trade_date=end_date)
+        zha_df, a = stra_zha.get_result(df=self.df.drop(columns='next_auc_amt'), trade_date=end_date)
         zha_df = zha_df.join(self.top_cons)
         logger.info(f'Zha Strategy got {len(zha_df)} records at last EOD.')
         logger.debug(df_to_text(zha_df, prefix_newline=True))
@@ -194,7 +194,7 @@ class Bot():
 
 def slim_init(start_date, end_date, expire_days=30):
 
-    search_pattern = glob.glob(f'{ROOT_PATH}/tmp/price_{start_date}_{end_date}_*_slim.feather')
+    search_pattern = glob.glob(f'{ROOT_PATH}/tmp/priceslim_{start_date}_{end_date}_*.feather')
     for f in search_pattern:
         # read cache
         logger.info(f'Found cache file: {f}, loading...')
@@ -307,7 +307,7 @@ def slim_init(start_date, end_date, expire_days=30):
 
         # cache it
         expire_date = pdl.today().add(days=expire_days).to_date_string()
-        df_file_path = f'{ROOT_PATH}/tmp/price_{start_date}_{end_date}_{expire_date}_slim.feather'
+        df_file_path = f'{ROOT_PATH}/tmp/priceslim_{start_date}_{end_date}_{expire_date}.feather'
 
         df.reset_index(inplace=True)
         df.to_feather(df_file_path)
