@@ -62,13 +62,7 @@ def refine_variables(df, stra):
 
 class Bot():
 
-    def __init__(self, start_date, end_date, task_name, verbose=False):
-        if verbose:
-            logger.setLevel(logging.DEBUG)
-        else:
-            logger.setLevel(logging.INFO)
-        logger.debug("It's a good show.")
-
+    def __init__(self, start_date, end_date, task_name):
         logger.info(f'Start working on [{start_date} - {end_date}] Task: {task_name}... ')
         self.end_date = end_date
 
@@ -77,7 +71,11 @@ class Bot():
         clean_cache_files()
 
         # top cons
-        plate_mapping = ak_all_plates(use_cache=True)
+        if pdl.parse(end_date).weekday() == 5:
+            plate_mapping = ak_all_plates(use_cache=False, major_update=True, verbose=False)
+        else:
+            plate_mapping = ak_all_plates(use_cache=True, major_update=False, verbose=False)
+
         logger.info(f'Total plate number: {len(plate_mapping)}')
         con_sum, ind_sum, cons_detail = calc_plate_data(
             self.df.xs(slice(week_ago_date, end_date), level='trade_date', drop_level=False),
@@ -193,7 +191,6 @@ class Bot():
                 send_notification(zha_df_res[slim_cols], strategy='Zha')
                 break
 
-
 def slim_init(start_date, end_date, expire_days=30):
 
     search_pattern = glob.glob(f'{ROOT_PATH}/tmp/price_{start_date}_{end_date}_*_slim.feather')
@@ -204,60 +201,67 @@ def slim_init(start_date, end_date, expire_days=30):
         break
     else:
         logger.info(f'No cache. Start processing...')
+
+        print(f'Initializing data from {start_date} to {end_date}...')
         dc = DataCenter(start_date, end_date)
 
         stk_basic = dc.get_stock_basics()
         logger.debug(f'stk_basic Memory: {stk_basic.memory_usage(deep=True)}')
 
-        upstop = dc.get_upstops()
-        logger.debug(f'upstop Memory: {upstop.memory_usage(deep=True)}')
-        mf = dc.get_money_flow()
-        mf.loc[:, 'dde_amt'] = (mf.buy_elg_amount + mf.buy_lg_amount - mf.sell_elg_amount - mf.sell_lg_amount) * 10 # unit从万变成千
-        mf.loc[:, 'dde_vol'] = (mf.buy_elg_vol + mf.buy_lg_vol - mf.sell_elg_vol - mf.sell_lg_vol) / 10 # unit从手换成千股
-        mf = mf[['dde_amt', 'dde_vol']]
-        logger.debug(f'mf Memory: {mf.memory_usage(deep=True)}')
-
-        logger.info('Processing auction data...')
-        auctions = load_table(Auction, start_date, end_date)[['auc_vol', 'auc_amt']]
-        logger.debug(f'auction Memory: {auctions.memory_usage(deep=True)}')
-
         logger.info(f'Start processing price df...')
-        price = load_stock_prices(start_date=start_date, end_date=end_date, fast_load=True)
+        price  = dc.get_price()
         logger.debug(f'price Memory: {price.memory_usage(deep=True)}')
 
-        logger.info(f'Start processing adj price...')
-        # price = dc.get_price()
-        price = gen_adj_price(price, replace=True)
-        logger.debug(f'price Memory after adj: {price.memory_usage(deep=True)}')
+        logger.info('Processing Upstop data...')
+        upstop = dc.get_upstops(slim=True)
+        upstop.loc[:, 'upstop_num'] = upstop.limit.map(lambda lim: 1 if lim == 'U' else -1 if lim =='D' else 0)
+
+        upstop.loc[:, 'limit'] = upstop['limit'].astype(dtype="string[pyarrow]")
+        logger.debug(f'upstop Memory: {upstop.memory_usage(deep=True)}')
+
+        logger.info('Processing auction data...')
+        auctions = dc.get_auctions()[['auc_vol', 'auc_amt', 'open_pct']]
+        logger.debug(f'auction Memory: {auctions.memory_usage(deep=True)}')
 
         logger.info(f'Join price with other columns...')
-        df = (
-            price.join(mf)
-                 .join(upstop.drop(columns=['pct_chg', 'close', 'fc_ratio', 'fl_ratio', 'fd_amount', 'last_time']))
-                 .join(stk_basic[['name', 'list_date']].astype(dtype="string[pyarrow]"))
-                 .join(auctions)
-                 .drop(columns=[
-                    'change', 'adj_factor', 'pe', 'pe_ttm', 'total_share',
-                    'free_share', 'last_factor', 'norm_adj', 'adj_vol', 'amp',
-                  ])
-        )
-        logger.debug(f'{len(df)} df Memory after join: {df.memory_usage(deep=True)}')
 
-        # del mf
-        # del upstop
-        # del stk_basic
-        # del auctions
-        # gc.collect()
+        df = (
+            stk_basic[['name', 'list_date']].astype(dtype="string[pyarrow]").join(price).join(upstop).join(auctions)
+        )
+
+        # 'circ_mv', 'total_mv'
+        df.loc[:, 'circ_mv'] = df.float_share * df.close * 100
+        df.loc[:, 'total_mv'] = df.total_share * df.close * 100
+
+        df.drop(columns=[
+            'change', 'adj_factor', 'total_share', 'float_share',
+            'free_share', 'last_factor', 'norm_adj', 'adj_vol',
+            # 'pe', 'pe_ttm', 'amp',
+        ], inplace=True)
+
+        logger.info(df.columns)
+        logger.debug(f'{len(df)} df Memory after join: {df.memory_usage(deep=True)}')
 
         df = StockFilter(end_date).tui(anti=True).not_st().filter(df)
-
         logger.debug(f'{len(df)} df Memory after join: {df.memory_usage(deep=True)}')
 
-        # df = df[~df.list_date.isna()] # remove already 退市的
-        df.drop(columns=['list_date'], inplace=True)
+        logger.info('Filling upstops..')
+        df.upstop_num.fillna(0, inplace=True)
+        df.conseq_up_num.fillna(0, inplace=True)
 
-        df.loc[:, 'dde'] = round(df.dde_vol / df.float_share * 10, 2) # 千股除以万股，/10,再换成 pct，*100 =》 *10
+        # calc upstops
+        df.loc[:, 'upstop_price'] = df.pre_close.apply(up_stop_price)
+        # 累计连续涨停个数
+        df.loc[:, 'up_type'] = df[df.limit=='U'].apply(f_set_upstop_types, axis=1).astype(dtype="string[pyarrow]")
+        df.loc[:, 'pre5_upstops'] = df.groupby(level='ts_code').upstop_num.apply(lambda x: x.rolling(window=5, min_periods=1).sum()).astype('int8')
+        df.loc[:, 'pre10_upstops'] = df.groupby(level='ts_code').upstop_num.apply(lambda x: x.rolling(window=10, min_periods=1).sum()).astype('int8')
         logger.debug(f'df Memory: {df.memory_usage(deep=True)}')
+
+        df.columns
+
+        # 计算 bar type
+        df.loc[:, 'bar_type'] = df.apply(f_calc_yinyang, axis=1)
+        df.loc[:, 'pre2_bar_type'] = df.groupby('ts_code').bar_type.shift(2)
 
         logger.info(f'Start processing complex price...')
         df.loc[:, 'pre_close_6'] = df.groupby(level='ts_code').close.shift(6)
@@ -267,52 +271,33 @@ def slim_init(start_date, end_date, expire_days=30):
         df.loc[:, 'pre20_pct_chg'] = (df.pre_close/df.pre_close_21 - 1) * 100
         logger.debug(f'df Memory: {df.memory_usage(deep=True)}')
 
-        # 当日是否涨停
-        logger.info(f'Calculating upstop variables...')
-        df.loc[:, 'upstop_num'] = df.limit.apply(lambda lim: 1 if lim == 'U' else -1 if lim =='D' else 0).astype(dtype='int8')
-        df.loc[:, 'limit'] = df['limit'].astype(dtype="string[pyarrow]")
+        # 计算 list_days
+        print('Calculating list_days...')
+        df['cur_date'] = df.index.get_level_values('trade_date').map(lambda x: x.strftime('%Y-%m-%d'))
+        tmp = df.loc[df.groupby('ts_code').head(1).index]
+        tmp['list_days'] = tmp.cur_date.map(lambda x: tdu.past_trade_days().index(x)) - \
+                           tmp.list_date.map(lambda x: tdu.past_trade_days().index(x)) + 1
+        df['list_days'] = tmp['list_days']
+        df.list_days.fillna(1, inplace=True)
+        df.list_days = df.groupby('ts_code').list_days.cumsum()
 
-        # 累计连续涨停个数
-        tmp = df.groupby(level='ts_code').upstop_num.cumsum()
-        tmp2 = tmp.mask(df.upstop_num == 1).groupby(level='ts_code').ffill()
-        df.loc[:, 'conseq_up_num'] = tmp.sub(tmp2, fill_value=0).astype('int8')
-        df.loc[:, 'pre_conseq_up_num'] = df.groupby('ts_code').conseq_up_num.shift(1)
 
-        logger.info(f'Calculating previous upstop variables...')
-        df.loc[:, 'pre_open_times'] = df.groupby('ts_code').open_times.shift(1)
-        df.loc[:, 'pre5_upstops'] = df.groupby(level='ts_code').upstop_num.apply(lambda x: x.rolling(window=5, min_periods=1).sum()).astype('int8')
-        df.loc[:, 'pre10_upstops'] = df.groupby(level='ts_code').upstop_num.apply(lambda x: x.rolling(window=10, min_periods=1).sum()).astype('int8')
-        df.loc[:, 'upstop_price'] = df.pre_close.apply(up_stop_price)
-        df.loc[:, 'next_limit']   = df.groupby(level='ts_code').limit.shift(-1)
+        print('Performing shift to get prev signals...')
+        df.loc[:, 'cvo'] = df.pct_chg - df.open_pct
+        for ind in ['open_times', 'amount', 'vol', 'vol_ratio', 'open_times', 'up_type', 'conseq_up_num', 'bar_type']:
+            df.loc[:, f'pre_{ind}'] = df.groupby(level='ts_code')[ind].shift(1)
+        for ind in ['cvo', 'auc_amt', 'auc_vol', 'bar_type', 'vol_ratio', 'open_pct', 'up_type', 'limit']:
+            df.loc[:, f'next_{ind}'] = df.groupby(level='ts_code')[ind].shift(-1)
+        df.loc[:, 'next_auc_pvol_ratio'] = df.next_auc_amt/df.amount
         logger.debug(f'df Memory: {df.memory_usage(deep=True)}')
+
 
         logger.info('Calculating MAs...')
         df = gen_ma(df, col='close', mavgs=[5, 10, 30, 60])
-        df.rename(columns={'volume_ratio':'vol_ratio'}, inplace=True)
-        df = gen_ma(df, mavgs=[5], col='vol', add_shift=1)
-        # df.loc[:, 'vol_ratio'] = df.vol / df.ma_vol_5
-        logger.debug(f'df Memory: {df.memory_usage(deep=True)}')
- 
-        # gc.collect()
-
-        # 计算 bar type
-        # logger.info('Calculating bar_type...')
-        # df.loc[:, 'bar_type'] = df.apply(f_calc_yinyang, axis=1).astype('string[pyarrow]')
-        # df.loc[:, 'pre_bar_type'] = df.groupby('ts_code').bar_type.shift(1)
-        # logger.debug(f'df Memory: {df.memory_usage(deep=True)}')
-
-        logger.info('Calculating up_type...')
-        df.loc[:, 'up_type'] = df[df.limit=='U'].apply(f_set_upstop_types, axis=1).astype('string[pyarrow]')
-        logger.debug(f'df Memory: {df.memory_usage(deep=True)}')
-
-        logger.info('Performing shift to get prev signals...')
-        # df.loc[:, 'cvo'] = df.pct_chg - df.open_pct
-        for ind in ['up_type', 'vol', 'vol_ratio']:
-            df.loc[:, f'pre_{ind}'] = df.groupby(level='ts_code')[ind].shift(1)
         logger.debug(f'df Memory: {df.memory_usage(deep=True)}')
 
         # Max in prev days
-        for span in [10, 120]:
+        for span in [10, 60]:
             df.loc[:, f'max_pre{span}_price'] = df.groupby(level='ts_code').high.apply(lambda x: x.rolling(window=span).max().shift(1))
             df.loc[:, f'min_pre{span}_price'] = df.groupby(level='ts_code').low.apply(lambda x: x.rolling(window=span).min().shift(1))
         logger.debug(f'df Memory: {df.memory_usage(deep=True)}')
@@ -328,6 +313,73 @@ def slim_init(start_date, end_date, expire_days=30):
         df.set_index(['ts_code', 'trade_date'], inplace=True)
 
     return df
+
+
+
+import re
+import time
+from pprint import pprint
+
+class Tonghuashun:
+    # 同花顺自选股列表相关
+    url = {'get': 'http://pop.10jqka.com.cn/getselfstockinfo.php',
+           'modify': 'http://stock.10jqka.com.cn/self.php'}
+
+    def __init__(self, uid, cookie):
+        self.uid = uid
+        self.cookie = cookie  # 该用户登录的cookie
+        self.headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:56.0) '
+                'Gecko/20100101 Firefox/56.0',
+                'Accept-Language': 'zh-CN,zh;q=0.8,en-US;q=0.5,en;q=0.3',
+                'Accept-Encoding': 'gzip, deflate',
+                'Referer': 'http://stock.10jqka.com.cn/my/zixuan.shtml',
+                'DNT': '1'
+            }
+        self.cookie = cookie
+        self.stocks = pd.DataFrame()  # 同花顺自选股清单
+
+    def get_stocks(self):
+        # 获取同花顺自选股列表
+        try:
+            payload = {'callback': 'callback' + str(int(time.time() * 1000))}
+            response = r.get(Tonghuashun.url['get'], params=payload, headers=self.headers, cookies=self.cookie, timeout=10)
+            # pprint(response.content)
+            self.stocks = pd.DataFrame(response.json())
+        except Exception as e:
+            logger.info(''.join(['get_stocks @', self.uid, '; error:', e]))
+            pprint(payload)
+            pprint(self.headers)
+            return False
+        else:
+            # pprint(self.stocks)
+            return self.stocks
+  
+    def modify_stock(self, code, method, pos='1'):
+        # 更改同花顺自选股列表
+        # method: add 添加, del 删除, exc 排序
+        # pos: 排序用的序号, 从1开始
+        try:
+            payload = {'add': {'stockcode': code, 'op': 'add'},
+                       'del': {'stockcode': code, 'op': 'del'},
+                       'exc': {'stockcode': code, 'op': 'exc', 'pos': pos, 'callback': 'callbacknew'}
+                       }
+            # self.get_stocks()
+            response = r.get(Tonghuashun.url['modify'], params=payload[method], headers=self.headers, timeout=10)
+            # pprint(response.content)
+            response = response.content.decode('gbk')
+            logger.info(''.join(['modify_stocks', method, pos, code, response]))
+            if response == u'修改自选股成功':
+                response = True
+        except Exception as e:
+            logger.info(''.join(['modify_stock', method, code, '@', self.uid, '; error:', e]))
+            pprint(payload[method])
+            pprint(self.headers)
+            return False
+        else:
+            self.get_stocks()
+            return response
+
 
 
 def df_to_text(df, prefix_newline=False):
@@ -355,15 +407,39 @@ def send_notification(res, strategy):
 
 
 if __name__ == '__main__':
-    from utils.datetimes import biquater_ago_date, quater_ago_date, end_date as tdu_end_date
-
     options = bot_options()
-    start_date = options.start_date if options.start_date else biquater_ago_date
+
+    if options.verbose:
+        logger.setLevel(logging.DEBUG)
+    else:
+        logger.setLevel(logging.INFO)
+    logger.debug("It's a good show.")
+
+    from utils.datetimes import biquater_ago_date, quater_ago_date, end_date as tdu_end_date
+    start_date = options.start_date if options.start_date else quater_ago_date
     end_date = options.end_date if options.end_date else tdu_end_date
+
+
+    with open('./tmp/debug.json', 'r') as f:
+        txt = f.readlines()
+    json_content = json.loads(txt[0])
+    cookies = {}
+    for cookie in json_content:
+        cookies[cookie['name']] = cookie['value']
+
+    logger.debug(cookies)
+
+    ths = Tonghuashun(uid='mx_516201474', cookie=cookies)
+    stks = ths.get_stocks()
+    logger.info(stks)
+
+
+    # exit()
+    print('......')
 
     if (today_date != end_date) and (today_date not in tdu.future_trade_days(start_date=end_date)):
         # not trading day
         wechat_bot.send_text(f'[{today_date}] Today is not a trading day. Have fun!')
     else:
-        task = Bot(start_date=start_date, end_date=end_date, task_name=options.task_name, verbose=options.verbose)
+        task = Bot(start_date=start_date, end_date=end_date, task_name=options.task_name)
         task.perform()

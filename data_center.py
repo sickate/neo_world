@@ -50,7 +50,7 @@ class DataCenter:
                 self.price = gen_adj_price(self.price, replace=True)
             if self.stock_list is not None:
                 self.price = StockFilter(self.end_date, self.stock_list).hs().filter(self.price)
-            self.price = gen_price_data(self.price)
+            # self.price = gen_price_data(self.price)
 
             self.price = calc_vol_types(self.price, mavgs=[5,20])
 
