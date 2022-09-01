@@ -93,6 +93,7 @@ class Bot():
 
 
     def prep_data(self):
+        send_notification(f'{self.end_date} data is prepared. Total {len(self.df)} records.')
         pass
 
 
@@ -103,7 +104,7 @@ class Bot():
         logger.info(f'Found {len(res)}')
         res.sort_values('turnover_rate_f', inplace=True)
         res = res.join(self.top_cons)
-        send_notification(res[preview_cols], strategy='BOX')
+        send_stra_result(res[preview_cols], strategy='BOX')
 
 
     def open_mkt(self):
@@ -117,7 +118,8 @@ class Bot():
         while True:
             now = pdl.now()
             logger.debug(f'{now.hour}:{now.minute}:{now.second}')
-            if now.hour >= 9 and now.minute >= 25 and now.second >= 8:
+            # if now.hour >= 9 and now.minute >= 25 and now.second >= 8:
+            if now.hour >= 9:
                 logger.info('Start pulling auction data...')
                 # 获取竞价数据（Run this after trading day 9:25）
                 auc = ak_today_auctions(ts_codes=df2.index)
@@ -132,7 +134,7 @@ class Bot():
                 up_auc_vol_stra.merge_other(auc_stra)
                 df4, a = up_auc_vol_stra.get_result(df=df3)
                 logger.info(f'AUC strategy got {len(df4)} records.')
-                send_notification(df4[auc_preview_cols].sort_values('next_auc_pvol_ratio', ascending=False), strategy='AUC')
+                send_stra_result(df4[auc_preview_cols].sort_values('next_auc_pvol_ratio', ascending=False), strategy='AUC')
                 break
             sleep(5)
 
@@ -188,7 +190,7 @@ class Bot():
                 # 得到最终数据
                 zha_df_res, a = stra_zha.get_result(df=zha_df_close)
                 logger.info(f'Zha strategy got {len(zha_df_res)} records.')
-                send_notification(zha_df_res[slim_cols], strategy='Zha')
+                send_stra_result(zha_df_res[slim_cols], strategy='Zha')
                 break
 
 def slim_init(start_date, end_date, expire_days=30):
@@ -392,7 +394,10 @@ def df_to_text(df, prefix_newline=False):
     return "\n".join(txt)
 
 
-def send_notification(res, strategy):
+def send_notification(text):
+    wechat_bot.send_text(text)
+
+def send_stra_result(res, strategy=None):
     if len(res) > 0:
         styled_res = style_full_df(res)
         logger.info(res.name)
