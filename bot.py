@@ -111,15 +111,14 @@ class Bot():
         up_auc_vol_stra = Strategy(name='up & auc', stock_filter=StockFilter(end_date).not_st().tui(anti=True).zb())
         up_stra.rules['conseq_up_num'] = [{'op': '>=', 'val': 1}, {'op': '<=', 'val': 3}] # remove list_days stra
         up_auc_vol_stra.merge_other(up_stra)
-        df2, a = up_auc_vol_stra.get_result(df=self.df, trade_date=end_date)
+        df2, a = up_auc_vol_stra.get_result(df=self.df.drop(columns='next_auc_amt'), trade_date=end_date)
         df2 = df2.join(self.top_cons)
         logger.info(f'Get {len(df2)} records from 1st filter...')
 
         while True:
             now = pdl.now()
             logger.debug(f'{now.hour}:{now.minute}:{now.second}')
-            # if now.hour >= 9 and now.minute >= 25 and now.second >= 8:
-            if now.hour >= 9:
+            if now.hour >= 9 and now.minute >= 25 and now.second >= 8:
                 logger.info('Start pulling auction data...')
                 # 获取竞价数据（Run this after trading day 9:25）
                 auc = ak_today_auctions(ts_codes=df2.index)
