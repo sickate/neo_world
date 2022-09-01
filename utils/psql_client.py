@@ -96,8 +96,7 @@ def load_stock_prices(start_date, end_date, ts_codes=None, fast_load=True):
     basic.rename(columns={'volume_ratio': 'vol_ratio'}, inplace=True)
     basic.set_index(['ts_code', 'trade_date'], inplace=True)
 
-    if verbose:
-        logger.info(f'Merging...')
+    logger.info(f'Merging...')
     df = price.join(adjfactor[['adj_factor']]).join(basic[['turnover_rate', 'turnover_rate_f',
         'vol_ratio', 'free_mv', 'total_share', 'float_share', 'free_share', 'ma_close_250']])
     return df.drop(columns='id')

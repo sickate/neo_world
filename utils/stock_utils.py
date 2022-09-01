@@ -107,6 +107,7 @@ def calc_vol_types(df, mavgs=None):
     '''
         Generate ma_vols and vol_ratio
     '''
+    df = gen_ma(df, mavgs=[5, 20], col='vol', add_shift=1)
     df.loc[:, 'vol_type'] = df.apply(f_set_vol_types, axis=1)
     df.loc[:, 'pre_trf'] = df.groupby(level='ts_code').turnover_rate_f.shift(1)
     return df
