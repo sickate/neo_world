@@ -423,23 +423,19 @@ if __name__ == '__main__':
     start_date = options.start_date if options.start_date else quater_ago_date
     end_date = options.end_date if options.end_date else tdu_end_date
 
+    # with open('./tmp/debug.json', 'r') as f:
+        # txt = f.readlines()
+    # json_content = json.loads(txt[0])
+    # cookies = {}
+    # for cookie in json_content:
+        # cookies[cookie['name']] = cookie['value']
 
-    with open('./tmp/debug.json', 'r') as f:
-        txt = f.readlines()
-    json_content = json.loads(txt[0])
-    cookies = {}
-    for cookie in json_content:
-        cookies[cookie['name']] = cookie['value']
+    # logger.debug(cookies)
 
-    logger.debug(cookies)
-
-    ths = Tonghuashun(uid='mx_516201474', cookie=cookies)
-    stks = ths.get_stocks()
-    logger.info(stks)
-
-
+    # ths = Tonghuashun(uid='mx_516201474', cookie=cookies)
+    # stks = ths.get_stocks()
+    # logger.info(stks)
     # exit()
-    print('......')
 
     if (today_date != end_date) and (today_date not in tdu.future_trade_days(start_date=end_date)):
         # not trading day
