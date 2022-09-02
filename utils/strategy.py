@@ -206,6 +206,7 @@ vol_stra.add_condition('vol', '>', var='ma_vol_5', ratio=1.7)
 
 # 3. up
 ###################################
+# 昨涨停，昨连板天数=1, 主板，昨成交额<15亿，昨实际换手率>=5%，昨实际换手率<45%，昨日内振幅>2%，昨收盘价<=ma60*1.2，
 up_stra = Strategy(name='up')
 up_stra.add_condition('pct_chg', '>', val=9)
 up_stra.add_condition('conseq_up_num', '>=', val=1)
@@ -216,20 +217,22 @@ up_stra.add_condition('amount',  '<', val=15_0000_0000) # 15亿，unit: k
 up_stra.add_condition('turnover_rate_f', '<', val=45)
 up_stra.add_condition('turnover_rate_f', '>=', val=5)
 up_stra.add_condition('high', '>', var='low', ratio=1.02) # 日内振幅大于 2% (非一字板）
+up_stra.add_condition('close', '<=', var='ma_close_60', ratio=1.2)
 # s.add_condition('vol_ratio', '>', val=1.5)
 # s.add_condition('vol_ratio', '<', val=3.3)
 # s.add_condition('vol', '>', var='ma_vol_5', ratio=1.7)
 # 近期涨幅
-up_stra.add_condition('close', '<', var='ma_close_60', ratio=1.2)
 
 # 4. auc
 ###################################
+# 2%<今日开盘涨幅，今日开盘涨幅<=7%，今日竞价成交额>1000万，今日竞价成交额<1亿，今日竞价成交额>昨日成交额*0.05，价格>ma250
 auc_stra = Strategy(name='auc')
-auc_stra.add_condition('next_open_pct', '<', val=7)
+auc_stra.add_condition('next_open_pct', '<=', val=7)
 auc_stra.add_condition('next_open_pct', '>', val=2)
 auc_stra.add_condition('next_auc_amt', '>', var='amount', ratio=0.05)
 auc_stra.add_condition('next_auc_amt', '>', val=10000000)
 auc_stra.add_condition('next_auc_amt', '<', val=100000000)
+auc_stra.add_condition('next_open', '>', var='ma_close_250', ratio=1)
 
 # 5. straigt Y upstops
 ###################################

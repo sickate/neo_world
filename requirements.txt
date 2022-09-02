@@ -121,6 +121,7 @@ ipywidgets
 ipython-genutils>=0.2.0
 jupyterlab>=1.0.4
 jupyter-nbextensions-configurator>=0.4.1
+jupyter-dash
 voila
 
 # boost
