@@ -47,6 +47,7 @@ def data_tasks(task):
 
             'info': show_data_status,
             'check': check_data_integrity,
+            'pull': pull_data,
         }
     return funcs.get(task, method_not_exist)
 

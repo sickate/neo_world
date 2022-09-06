@@ -1,6 +1,7 @@
 import sys
 sys.path.append('./')
 
+
 from env import *
 from sqlbase import engine, db_session, text, desc
 
@@ -10,7 +11,7 @@ from utils.stock_utils import *
 from utils.psql_client import load_table, insert_df, get_stock_basic
 from utils.datasource import ak, ak_all_plates, ak_today_auctions, ak_activity, ak_today_index, ak_get_limit, ak_daily_prices, ak_stock_basics, ak_daily_basic
 from utils.datetimes import biquater_ago_date, end_date as tdu_end_date, today_date as tdu_today_date, trade_day_util as tdu
-from utils.logger import logger
+from utils.logger import logger, logging
 
 from models import *
 from data_center import DataCenter, init_data
@@ -19,6 +20,54 @@ from data_center import DataCenter, init_data
 DAILY_MODELS = [StockBasic, DailyBasic, Price, AdjFactor, Money, LimitStock]
 DATE_MODELS = []
 
+import paramiko
+logging.getLogger("paramiko").setLevel(logging.INFO)
+
+
+def get_connection(hostname):
+    s = paramiko.SSHClient()
+    s.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    s.connect(hostname, key_filename='/Users/tzhu/.ssh/id_rsa')
+    return s
+
+
+def get_table_columns(modelname):
+    q=db_session.query(modelname).limit(1).statement
+    columns = list(engine.execute(q)._metadata.keys)
+    columns.remove('id')
+    if 'limit' in columns:
+        columns.remove('limit')
+        columns.append('\\"limit\\"')
+    return ', '.join(columns)
+
+
+def get_file_from_remote(host, remote_file, local_file):
+    s = get_connection(host)
+    ftp_client = s.open_sftp()
+    ftp_client.get(remote_file, local_file)
+    ftp_client.close()
+
+
+def load_table_from_host(model, hostname, trade_date):
+    s = get_connection(hostname)
+    filename = f'{model.__tablename__}_{trade_date}.csv'
+    copy_command = f'psql -d stock -c "copy (select {get_table_columns(model)} from {model.__tablename__} where trade_date=\'{trade_date}\') to \'/tmp/{filename}\' delimiter \'|\' CSV header"'
+    logger.debug(copy_command)
+    stdin, stdout, stderr = s.exec_command(copy_command)
+    logger.debug(stdout)
+    if len(stderr.readlines()) == 0: # success
+        localfile = f'{os.getcwd()}/tmp/{filename}'
+        ftp_client = s.open_sftp()
+        ftp_client.get(f'/tmp/{filename}', f'{localfile}')
+        ftp_client.close()
+        t = pd.read_csv(localfile, delimiter='|')
+        logger.info(f'{trade_date} Got {len(t)} {model.__tablename__} data from {hostname}, loading...')
+        insert_df(df=t, tablename=model.__tablename__)
+        logger.info(f'{trade_date} {model.__tablename__} local file {localfile} is loaded.')
+        return t
+    else:
+        logger.error(stderr)
+        return None
 
 
 @data_params_wrapper
@@ -110,8 +159,75 @@ def show_data_status():
             print('No {model.__name__} records.')
 
 
+
 @data_params_wrapper
-def check_data_integrity(start_date=None, end_date=None, try_fix=True, sleep_time=2):
+def pull_data(start_date=None, end_date=None):
+    hostname = 'elon'
+    from neo import data_tasks
+    if end_date is None:
+        from utils.datetimes import end_date as last_trade_date
+        end_date = last_trade_date
+    if start_date is None:
+        start_date = trade_day_util.past_trade_days(days=5)[0]
+    days_to_check = trade_day_util.trade_days_between(start_date=start_date, end_date=end_date)
+
+    logger.info(f'Checking days from {days_to_check[0]} to {days_to_check[-1]}, {len(days_to_check)} days in total.')
+
+    logger.info('Update StockBasic anyway...')
+    fetch_stock_basics()
+
+    # 最近的一个交易日
+    today_date = tdu.past_trade_days(tdu_today_date, days=1)[-1]
+
+    for day in tqdm(days_to_check):
+        logger.info(f'Checking Price/AdjFactor of {day}...')
+        adj_factor = load_table(AdjFactor, start_date=day, end_date=day)
+        price = load_table(Price, start_date=day, end_date=day)
+        min_count = min(len(adj_factor), len(price))
+        if min_count < expected_count_in_day(Price, day):
+            load_table_from_host(AdjFactor, hostname, day)
+            load_table_from_host(Price, hostname, day)
+
+        logger.info(f'Checking DailyBasic of {day}...')
+        dbasic = load_table(DailyBasic, start_date=day, end_date=day)
+        if len(dbasic) < expected_count_in_day(DailyBasic, day):
+            load_table_from_host(DailyBasic, hostname, day)
+
+        logger.info(f'Checking Upstops of {day}...')
+        upstops = load_table(LimitStock, start_date=day, end_date=day)
+        logger.info(f"[{day}]. LimitStock count: {len(upstops)}, Expected: {expected_count_in_day(LimitStock, day)}.")
+        if len(upstops) < expected_count_in_day(LimitStock, day):
+            load_table_from_host(LimitStock, hostname, day)
+
+        logger.info(f"Checking {day} Auction data...")
+        df = load_table(Auction, start_date=day, end_date=day)
+        logger.info(f"[{day}]. Auction count: {len(df)}, Expected: {expected_count_in_day(Auction, day)}.")
+        if len(df) < expected_count_in_day(Auction, day):
+            load_table_from_host(Auction, hostname, day)
+            logger.info(f"[{day}] Auction Fixed. You might want to re-run this check after all done.")
+
+        logger.info(f"Checking {day} Index data...")
+        df = load_table(Index, start_date=day, end_date=day)
+        logger.info(f"[{day}]. Index count: {len(df)}, Expected: {expected_count_in_day(Index, day)}.")
+        if len(df) < expected_count_in_day(Index, day):
+            load_table_from_host(Index, hostname, day)
+
+        logger.info(f'Get emo of {day}')
+        load_table_from_host(Activity, hostname, day)
+
+    logger.info("Pulling plates data...")
+    local_plate_file = './data/plates.feather'
+    plates = pd.read_feather(local_plate_file)
+    logger.info(f'[Before] Plate file has {len(plates)} records.')
+    get_file_from_remote(hostname, '/var/neo_world/codebase/data/plates.feather', local_plate_file)
+    plates = pd.read_feather(local_plate_file)
+    logger.info(f'[After] Plate file has {len(plates)} records.')
+
+    return None
+
+
+@data_params_wrapper
+def check_data_integrity(start_date=None, end_date=None, try_fix=True, sleep_time=2, from_elon=False):
     from neo import data_tasks
     if end_date is None:
         from utils.datetimes import end_date as last_trade_date

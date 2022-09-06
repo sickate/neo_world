@@ -36,6 +36,7 @@ def data_task_options(task_name_desc):
     parser.add_argument("--ts_code")
     parser.add_argument("--trade_date")
     parser.add_argument("-v", "--verbose", dest="verbose", action='store_true')
+    parser.add_argument("--host", dest="host", help='fill elon if you want to use elon data')
     options = parser.parse_args()
     return options
 
