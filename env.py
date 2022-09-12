@@ -28,6 +28,7 @@ from IPython.core.display import display
 
 from utils.logger import logger
 
-ROOT_PATH = os.getcwd()
+ROOT_PATH = os.path.dirname(__file__)
+
 logger.debug('You are not alone.')
 logger.info(f'Enviroment loaded. Working Dir: {ROOT_PATH}')

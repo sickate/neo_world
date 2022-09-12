@@ -121,7 +121,6 @@ class Bot():
             send_stra_result(res[avg_p_cols])
 
 
-
     def open_mkt(self):
         up_auc_vol_stra = Strategy(name='up & auc', stock_filter=StockFilter(end_date).not_st().tui(anti=True).zb())
         up_stra.rules['conseq_up_num'] = [{'op': '>=', 'val': 1}, {'op': '<=', 'val': 3}] # remove list_days stra
@@ -208,7 +207,7 @@ class Bot():
                 break
 
 def slim_init(start_date, end_date, expire_days=30):
-
+    print(f'{ROOT_PATH}/tmp/priceslim_{start_date}_{end_date}_*.feather')
     search_pattern = glob.glob(f'{ROOT_PATH}/tmp/priceslim_{start_date}_{end_date}_*.feather')
     for f in search_pattern:
         # read cache
@@ -216,7 +215,7 @@ def slim_init(start_date, end_date, expire_days=30):
         df = pd.read_feather(f).set_index(['ts_code', 'trade_date'])
         break
     else:
-        logger.info(f'No cache. Start processing...')
+        logger.info(f'No cache found. Start processing...')
 
         print(f'Initializing data from {start_date} to {end_date}...')
         dc = DataCenter(start_date, end_date)
@@ -244,6 +243,8 @@ def slim_init(start_date, end_date, expire_days=30):
         df = (
             stk_basic[['name', 'list_date']].astype(dtype="string[pyarrow]").join(price).join(upstop).join(auctions)
         )
+        # fix limit type
+        df.limit.fillna('N', inplace=True)
 
         # calc avg_p
         df.loc[:, 'vol_ratio'] = round(df.vol / df.ma_vol_5, 2)
@@ -380,7 +381,7 @@ class Tonghuashun:
         else:
             # pprint(self.stocks)
             return self.stocks
-  
+
     def modify_stock(self, code, method, pos='1'):
         # 更改同花顺自选股列表
         # method: add 添加, del 删除, exc 排序
