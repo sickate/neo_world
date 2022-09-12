@@ -285,11 +285,8 @@ def check_data_integrity(start_date=None, end_date=None, try_fix=True, sleep_tim
                 data_tasks('index')()
                 logger.info(f"[{day}] Index Data Fixed. You might want to re-run this check after all done.")
 
-    print('Get emo')
+    logger.info('Get emo')
     ak_activity(save=True)
-
-    logger.info("Updating plates data...")
-    ak_all_plates(use_cache=False, major_update=False)
 
     return None
 

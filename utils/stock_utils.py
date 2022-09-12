@@ -99,7 +99,6 @@ def gen_price_data(df):
         df.loc[:, f'max_pre{span}_price'] = df.groupby(level='ts_code').high.apply(lambda x: x.rolling(window=span).max().shift(1))
         df.loc[:, f'min_pre{span}_price'] = df.groupby(level='ts_code').low.apply(lambda x: x.rolling(window=span).min().shift(1))
 
-    df.loc[:, 'avg_price'] = round(df.amount * 10 / df.vol, 2)
     return df
 
 

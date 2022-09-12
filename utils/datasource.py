@@ -89,6 +89,7 @@ def ak_stock_basics(savedb=False):
 
     latest_date = pdl.parse(stk_basic.list_date.max()).to_date_string()
     if latest_date < end_date:
+        logger.info(f'Last date in db: {latest_date}, end_date: {end_date}')
 
         # get all new stocks from ak
         new_df = ak.stock_zh_a_new_em()

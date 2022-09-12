@@ -2,7 +2,7 @@
 
 import operator
 
-OPS = { "+": operator.add, "-": operator.sub, '>': operator.gt, '<': operator.lt, '=': operator.eq, '>=': operator.ge, '<=': operator.le}
+OPS = { "+": operator.add, "-": operator.sub, '>': operator.gt, '<': operator.lt, '=': operator.eq, '>=': operator.ge, '<=': operator.le, '!=': operator.ne}
 
 
 class Strategy():

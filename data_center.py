@@ -60,7 +60,9 @@ class DataCenter:
 
     def get_stock_basics(self, force_refresh=False):
         if self.stock_basics is None or force_refresh:
-            self.stock_basics = ak_stock_basics()
+            self.stock_basics = get_stock_basic()
+            self.stock_basics.loc[:,'list_date'] = self.stock_basics.list_date.map(str).apply(lambda x: x[0:4]+'-'+x[4:6]+'-'+x[-2:])
+            self.stock_basics.drop(columns='id', inplace=True)
             if self.stock_list is not None:
                 self.stock_basics = StockFilter(self.end_date, self.stock_list).hs().filter(self.stock_basics)
         return self.stock_basics
@@ -84,30 +86,36 @@ class DataCenter:
 
 
     def merge_all(self):
-        print('Merging all data...')
+        logger.info('Merging all data...')
         stk_basic = self.get_stock_basics()
         price = self.get_price()
         upstop = self.get_upstops(slim=True)
-        mf = self.get_money_flow()
-        df_init = price.join(mf).join(upstop.drop(columns=['pct_chg', 'close'])).join(stk_basic[['name', 'list_date']])
+        # mf = self.get_money_flow()
+        auctions = self.get_auctions()
+        df_init = price.join(upstop).join(stk_basic[['name', 'list_date']]).join(auctions.drop(columns=['pre_close', 'open', 'open_pct']))
         df_init = df_init[~df_init.list_date.isna()] # remove already 退市的
+
+        # calc avg_p
+        df_init.loc[:, 'avg_price'] = round(df_init.amount / df_init.adj_vol / 100, 2)
+        df_init.loc[:, 'avg_profit'] = (df_init.close-df_init.avg_price)/df_init.avg_price * df_init.amount # 当日获利资金金额
+        df_init.loc[:, 'open_pct'] = round((df_init.open/df_init.pre_close-1)*100, 2)
+        df_init.loc[:, 'cvo'] = df_init.pct_chg - df_init.open_pct
+        df_init.loc[:, 'vol_ratio'] = df_init.vol / df_init.ma_vol_5
 
         # 计算复合指标
         # 涨停类型
-        print('Calculating upstop data...')
+        logger.info('Calculating upstop data...')
         df_init = calc_upstop(df_init)
-        df_init.loc[:, 'next_limit']   = df_init.groupby(level='ts_code').limit.shift(-1)
-        df_init.loc[:, 'next_up_type'] = df_init.groupby(level='ts_code').up_type.shift(-1)
         # 涨停复合计算
         # 均线计算
-        print('Calculating MAs...')
-        df_init = gen_ma(df_init, mavgs=[5, 10, 30, 60, 120, 250])
+        logger.info('Calculating MAs...')
+        df_init = gen_ma(df_init, mavgs=[5, 10, 30, 60, 120])
         df_init.loc[:,'pre_ma_close_5'] = df_init.groupby(level='ts_code').ma_close_5.shift(1)
         df_init.loc[:,'pre2_ma_close_5'] = df_init.groupby(level='ts_code').ma_close_5.shift(2)
         df_init.loc[:,'pre3_ma_close_5'] = df_init.groupby(level='ts_code').ma_close_5.shift(3)
 
         # 计算 list_days
-        print('Calculating list_days...')
+        logger.info('Calculating list_days...')
         # df_init['list_date'] = df_init.list_date.apply(lambda x: x[0:4]+'-'+x[4:6]+'-'+x[-2:])
         df_init['cur_date'] = df_init.index.get_level_values('trade_date').map(lambda x: x.strftime('%Y-%m-%d'))
         tmp = df_init.loc[df_init.groupby('ts_code').head(1).index]
@@ -122,28 +130,29 @@ class DataCenter:
         df_init.loc[:, 'pre_bar_type'] = df_init.groupby('ts_code').bar_type.shift(1)
         df_init.loc[:, 'pre2_bar_type'] = df_init.groupby('ts_code').bar_type.shift(2)
 
-        auctions = load_table(Auction, self.start_date, self.end_date)
-        self.auctions = auctions.sort_index()
-        df_init = df_init.join(self.auctions[['auc_vol', 'auc_amt']])
-
-        print('Performing shift to get prev signals...')
-        df_init.loc[:, 'cvo'] = df_init.pct_chg - df_init.open_pct
-        for ind in ['open_times', 'fl_ratio', 'fc_ratio', 'strth', 'amount', 'amp', 'vol', 'vol_ratio']:
+        logger.info('Performing shift to get prev signals...')
+        for ind in ['open_times', 'amount', 'vol', 'vol_ratio', 'open_times', 'up_type', 'conseq_up_num', 'bar_type', 'limit', 'pre10_upstops', 'avg_price', 'pct_chg']:
             df_init.loc[:, f'pre_{ind}'] = df_init.groupby(level='ts_code')[ind].shift(1)
-        for ind in ['cvo', 'auc_amt', 'auc_vol', 'bar_type', 'vol_ratio']:
+        for ind in ['cvo', 'auc_amt', 'auc_vol', 'bar_type', 'vol_ratio', 'open_pct', 'up_type', 'limit', 'pct_chg', 'open']:
             df_init.loc[:, f'next_{ind}'] = df_init.groupby(level='ts_code')[ind].shift(-1)
         df_init.loc[:, 'next_auc_pvol_ratio'] = df_init.next_auc_amt/df_init.amount
 
-        df_init.loc[:, 'dde_amt'] = (df_init.buy_elg_amount + df_init.buy_lg_amount - df_init.sell_elg_amount - df_init.sell_lg_amount) * 10 # unit从万变成千
-        df_init.loc[:, 'dde_vol'] = (df_init.buy_elg_vol + df_init.buy_lg_vol - df_init.sell_elg_vol - df_init.sell_lg_vol) / 10 # unit从手换成千股
-        df_init.loc[:, 'dde'] = round(df_init.dde_vol / df_init.float_share * 10, 2) # 千股除以万股，/10,再换成 pct，*100 =》 *10
+        # calc y sigs
+        # 次日开盘 v 今日开盘（开盘买，次日开盘卖)
+        df_init.loc[:, 'next_open_v_open'] = round((df_init.next_open/df_init.open-1)*100,2)
+        # 次2日开盘 v 次日开盘（明日开盘买，次2日开盘卖)
+        df_init.loc[:, 'next2_open_v_open'] = df_init.groupby(level='ts_code').next_open_v_open.shift(-1)
+
+        # df_init.loc[:, 'dde_amt'] = (df_init.buy_elg_amount + df_init.buy_lg_amount - df_init.sell_elg_amount - df_init.sell_lg_amount) * 10 # unit从万变成千
+        # df_init.loc[:, 'dde_vol'] = (df_init.buy_elg_vol + df_init.buy_lg_vol - df_init.sell_elg_vol - df_init.sell_lg_vol) / 10 # unit从手换成千股
+        # df_init.loc[:, 'dde'] = round(df_init.dde_vol / df_init.float_share * 10, 2) # 千股除以万股，/10,再换成 pct，*100 =》 *10
 
         self.dfall = df_init
         return self.dfall
 
 
 def init_data(start_date, end_date, expire_days=30):
-    print(f'Initializing data from {start_date} to {end_date}...')
+    logger.info(f'Initializing data from {start_date} to {end_date}...')
     dc = DataCenter(start_date, end_date)
 
     search_pattern = glob.glob(f'{ROOT_PATH}/tmp/price_{start_date}_{end_date}_*.feather')

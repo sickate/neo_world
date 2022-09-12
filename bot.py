@@ -221,7 +221,7 @@ def slim_init(start_date, end_date, expire_days=30):
         logger.debug(f'upstop Memory: {upstop.memory_usage(deep=True)}')
 
         logger.info('Processing auction data...')
-        auctions = dc.get_auctions()[['auc_vol', 'auc_amt', 'open_pct']]
+        auctions = dc.get_auctions()[['auc_vol', 'auc_amt']]
         logger.debug(f'auction Memory: {auctions.memory_usage(deep=True)}')
 
         logger.info(f'Join price with other columns...')
@@ -229,6 +229,13 @@ def slim_init(start_date, end_date, expire_days=30):
         df = (
             stk_basic[['name', 'list_date']].astype(dtype="string[pyarrow]").join(price).join(upstop).join(auctions)
         )
+
+        # calc avg_p
+        df.loc[:, 'vol_ratio'] = round(df.vol / df.ma_vol_5, 2)
+        df.loc[:, 'avg_price'] = round(df.amount / df.adj_vol / 100, 2)
+        df.loc[:, 'avg_profit'] = (df.close-df.avg_price)/df.avg_price * df.amount # 当日获利资金金额
+        df.loc[:, 'open_pct'] = round((df.open/df.pre_close-1)*100, 2)
+        df.loc[:, 'cvo'] = df.pct_chg - df.open_pct
 
         # 'circ_mv', 'total_mv'
         df.loc[:, 'circ_mv'] = df.float_share * df.close * 100
@@ -258,8 +265,6 @@ def slim_init(start_date, end_date, expire_days=30):
         df.loc[:, 'pre10_upstops'] = df.groupby(level='ts_code').upstop_num.apply(lambda x: x.rolling(window=10, min_periods=1).sum()).astype('int8')
         logger.debug(f'df Memory: {df.memory_usage(deep=True)}')
 
-        df.columns
-
         # 计算 bar type
         df.loc[:, 'bar_type'] = df.apply(f_calc_yinyang, axis=1)
         df.loc[:, 'pre2_bar_type'] = df.groupby('ts_code').bar_type.shift(2)
@@ -284,14 +289,19 @@ def slim_init(start_date, end_date, expire_days=30):
 
 
         print('Performing shift to get prev signals...')
-        df.loc[:, 'cvo'] = df.pct_chg - df.open_pct
-        for ind in ['open_times', 'amount', 'vol', 'vol_ratio', 'open_times', 'up_type', 'conseq_up_num', 'bar_type']:
+        for ind in ['open_times', 'amount', 'vol', 'vol_ratio', 'open_times', 'up_type', 'conseq_up_num', 'bar_type', 'limit', 'pre10_upstops', 'avg_price', 'pct_chg']:
             df.loc[:, f'pre_{ind}'] = df.groupby(level='ts_code')[ind].shift(1)
-        for ind in ['cvo', 'auc_amt', 'auc_vol', 'bar_type', 'vol_ratio', 'open_pct', 'up_type', 'limit']:
+        for ind in ['cvo', 'auc_amt', 'auc_vol', 'bar_type', 'vol_ratio', 'open_pct', 'up_type', 'limit', 'pct_chg']:
             df.loc[:, f'next_{ind}'] = df.groupby(level='ts_code')[ind].shift(-1)
+
         df.loc[:, 'next_auc_pvol_ratio'] = df.next_auc_amt/df.amount
         logger.debug(f'df Memory: {df.memory_usage(deep=True)}')
 
+        # calc y sigs
+        # 次日开盘 v 今日开盘（开盘买，次日开盘卖)
+        # df_init.loc[:, 'next_open_v_open'] = round((df_init.next_open/df_init.open-1)*100,2)
+        # 次2日开盘 v 次日开盘（明日开盘买，次2日开盘卖)
+        # df_init.loc[:, 'next2_open_v_open'] = df_init.groupby(level='ts_code').next_open_v_open.shift(-1)
 
         logger.info('Calculating MAs...')
         df = gen_ma(df, col='close', mavgs=[5, 10, 30, 60])
@@ -437,7 +447,8 @@ if __name__ == '__main__':
     # logger.info(stks)
     # exit()
 
-    if (today_date != end_date) and (today_date not in tdu.future_trade_days(start_date=end_date)):
+    # if (today_date != end_date) and (today_date not in tdu.future_trade_days(start_date=end_date)):
+    if False:
         # not trading day
         wechat_bot.send_text(f'[{today_date}] Today is not a trading day. Have fun!')
     else:
