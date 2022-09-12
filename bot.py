@@ -98,13 +98,28 @@ class Bot():
 
 
     def before_mkt(self):
-        box_stra.rules['conseq_up_num'] = [{'op': '=', 'val': 1}] # remove list_days stra
-        logger.debug(box_stra.rules)
-        res, keys = box_stra.get_result(self.df, self.end_date)
-        logger.info(f'Found {len(res)}')
-        res.sort_values('turnover_rate_f', inplace=True)
-        res = res.join(self.top_cons)
-        send_stra_result(res[preview_cols], strategy='BOX')
+        # box
+        # box_stra.rules['conseq_up_num'] = [{'op': '=', 'val': 1}] # remove list_days stra
+        # logger.debug(box_stra.rules)
+        # res, keys = box_stra.get_result(self.df, self.end_date)
+        # logger.info(f'Found {len(res)}')
+        # res.sort_values('turnover_rate_f', inplace=True)
+        # res = res.join(self.top_cons)
+        # send_stra_result(res[preview_cols], strategy='BOX')
+
+        # avg_price_deep
+        res, keys = avgp_stra2.get_result(self.df, self.end_date)
+        avg_p_cols = ['name', 'pre_limit', 'limit', 'pre10_upstops', 'vol_ratio', 'open', 'close', 'pct_chg', 'avg_price', 'ma_close_5']
+        if len(res) > 0:
+            send_notification(f'[{self.end_date}] Stra {avgp_stra2.name} next open_pct must > -9% and < 0%, and > ma5')
+            send_stra_result(res[avg_p_cols])
+
+        # avg_price ori
+        res, keys = avgp_stra.get_result(self.df, self.end_date)
+        if len(res) > 0:
+            send_notification(f'[{self.end_date}] Stra {avgp_stra.name} next open_pct must > -9% and < 0%, and > ma5')
+            send_stra_result(res[avg_p_cols])
+
 
 
     def open_mkt(self):

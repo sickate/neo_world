@@ -255,3 +255,47 @@ new_stra.add_condition('list_days', '<=', val=180)
 stra_pall = Strategy('stra_pall')
 stra_pall.add_condition('conseq_up_num', '>=', val=1)
 stra_pall.add_condition('conseq_up_num', '<=', val=3)
+
+# 7. avg_p stocks
+
+# orig
+avgp_stra = Strategy(name='AvgPrice_ori')
+avgp_stra.add_condition(op='>', col='avg_price', var='close', ratio=1.02) # 低收日均线
+
+avgp_stra.add_condition(op='>=', col='pre10_upstops', val=3) # 股价活跃
+avgp_stra.add_condition(op='>', col='vol_ratio', val=1.4) # 成交活跃
+avgp_stra.add_condition(op='!=', col='limit', val='D') # 非跌停
+avgp_stra.add_condition(op='>', col='close', var='ma_close_5', ratio=1) # 次开大于当日 ma5，总回报提升
+
+# avgp_stra.add_condition(op='>', col='next_open_pct', val=-9)
+# avgp_stra.add_condition(op='<', col='next_open_pct', val=0)
+
+# avgp_stra.add_condition(op='<', col='close', var='ma_close_10', ratio=1.2) # 次开大于当日 ma5，总回报提升
+
+# 
+# avgp_stra1 = Strategy(name='avgp', stock_filter=StockFilter(end_date=yesterday_date).not_st().zb().tui(anti=True))
+# avgp_stra1.add_condition(op='>', col='avg_price', var='close', ratio=1.02) # 低收日均线
+
+# avgp_stra1.add_condition(op='>=', col='pre10_upstops', val=3) # 股价活跃
+# avgp_stra1.add_condition(op='>', col='vol_ratio1', val=1.4) # 成交活跃
+
+# avgp_stra1.add_condition(op='>', col='pct_chg', val=-3) # 当日收高
+# avgp_stra1.add_condition(op='!=', col='limit', val='D') # 非跌停
+
+# avgp_stra1.add_condition(op='>', col='next_open_pct', val=-9)
+# avgp_stra1.add_condition(op='<', col='next_open_pct', val=0)
+# avgp_stra1.add_condition(op='>', col='next_open', var='ma_close_5', ratio=1) # 次开大于当日 ma5，总回报提升
+
+avgp_stra2 = Strategy(name='AvgPrice_Deep')
+avgp_stra2.add_condition(op='>', col='avg_price', var='close', ratio=1.02) # 低收日均线
+
+avgp_stra2.add_condition(op='>=', col='pre10_upstops', val=3) # 股价活跃
+avgp_stra2.add_condition(op='>', col='vol_ratio', val=1.4) # 成交活跃
+
+avgp_stra2.add_condition(op='<', col='pct_chg', val=-7.7) # 当日收低
+avgp_stra2.add_condition(op='>', col='pct_chg', val=-9.5) # 当日收低
+avgp_stra2.add_condition(op='!=', col='limit', val='D') # 非跌停
+
+# avgp_stra2.add_condition(op='>', col='next_open_pct', val=-9)
+# avgp_stra2.add_condition(op='<', col='next_open_pct', val=0)
+# avgp_stra2.add_condition(op='>', col='next_open', var='ma_close_5', ratio=1) # 次开大于当日 ma5，总回报提升
