@@ -95,6 +95,14 @@ class DataCenter:
         df_init = price.join(upstop).join(stk_basic[['name', 'list_date']]).join(auctions.drop(columns=['pre_close', 'open', 'open_pct']))
         df_init = df_init[~df_init.list_date.isna()] # remove already 退市的
 
+        df_init.loc[:, 'circ_mv'] = df_init.float_share * df_init.close * 100
+        df_init.loc[:, 'total_mv'] = df_init.total_share * df_init.close * 100
+
+        # calc max min
+        for span in [10, 20, 30, 60, 120]:
+            df_init.loc[:, f'max_pre{span}_price'] = df_init.groupby(level='ts_code').high.apply(lambda x: x.rolling(window=span).max().shift(1))
+            df_init.loc[:, f'min_pre{span}_price'] = df_init.groupby(level='ts_code').low.apply(lambda x: x.rolling(window=span).min().shift(1))
+
         # calc avg_p
         df_init.loc[:, 'avg_price'] = round(df_init.amount / df_init.adj_vol / 100, 2)
         df_init.loc[:, 'avg_profit'] = (df_init.close-df_init.avg_price)/df_init.avg_price * df_init.amount # 当日获利资金金额
@@ -131,7 +139,7 @@ class DataCenter:
         df_init.loc[:, 'pre2_bar_type'] = df_init.groupby('ts_code').bar_type.shift(2)
 
         logger.info('Performing shift to get prev signals...')
-        for ind in ['open_times', 'amount', 'vol', 'vol_ratio', 'open_times', 'up_type', 'conseq_up_num', 'bar_type', 'limit', 'pre10_upstops', 'avg_price', 'pct_chg']:
+        for ind in ['open_times', 'amount', 'vol', 'vol_ratio', 'open_times', 'vol_type', 'up_type', 'conseq_up_num', 'bar_type', 'limit', 'pre10_upstops', 'avg_price', 'pct_chg']:
             df_init.loc[:, f'pre_{ind}'] = df_init.groupby(level='ts_code')[ind].shift(1)
         for ind in ['cvo', 'auc_amt', 'auc_vol', 'bar_type', 'vol_ratio', 'open_pct', 'up_type', 'limit', 'pct_chg', 'open']:
             df_init.loc[:, f'next_{ind}'] = df_init.groupby(level='ts_code')[ind].shift(-1)

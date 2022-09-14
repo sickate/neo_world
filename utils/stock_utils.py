@@ -19,7 +19,7 @@ from utils.datetimes import trade_day_util as tdu
 
 
 BASIC_COLS = ['name', 'open', 'high', 'low', 'close', 'pct_chg', 'amount']
-ORI_COLS = ['first_time', 'last_time', 'open_times', 'fc_ratio', 'fl_ratio', 'limit']
+ORI_COLS = ['first_time', 'last_time', 'open_times', 'fd_amount', 'limit']
 ADDED_COLS = ['upstop_num', 'conseq_up_num', 'post_up_num', 'up_type']
 Y_COLS = ['pct_chg', 'close_open_pct', 'next_high_open_pct', 'next_pct_chg', 'next2_pct_chg', 'next3_pct_chg', 'next10_pct_chg', 'next20_pct_chg']
 
@@ -698,11 +698,8 @@ def upstop_analyze(df, tdate, backtest=False, show_detail=True):
         print('最早封死')
         display_up_df(today_up.sort_values('last_time', ascending=True).head(5))
 
-        print('封单 vs 成交最大')
-        display_up_df(today_up.sort_values('fc_ratio', ascending=False).head(5))
-
-        print('封单比例最大')
-        display_up_df(today_up.sort_values('fl_ratio', ascending=False).head(5))
+        print('封单最大')
+        display_up_df(today_up.sort_values('fd_amount', ascending=False).head(5))
 
         print('成交额最大')
         display_up_df(today_up.sort_values('amount', ascending=False).head(5))

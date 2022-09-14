@@ -623,7 +623,7 @@ def market_summary(df, upstop_trend_df, end_date):
     today_df = df.xs(end_date, level='trade_date', drop_level=True)
     today_hs = StockFilter(end_date=end_date).hs().filter(today_df)
 
-    total_amt = round(today_hs.amount.sum()/100000, 2)
+    total_amt = round(today_hs.amount.sum()/1_0000_0000, 2)
 
     try:
         bs_amount = round(ak.stock_hsgt_north_net_flow_in_em(symbol="北上").rename(columns={'date': 'trade_date'}).set_index('trade_date').loc[end_date].value / 10000, 2)

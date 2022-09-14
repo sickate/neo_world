@@ -231,9 +231,6 @@ def slim_init(start_date, end_date, expire_days=30):
         upstop = dc.get_upstops(slim=True)
         upstop.loc[:, 'upstop_num'] = upstop.limit.map(lambda lim: 1 if lim == 'U' else -1 if lim =='D' else 0)
 
-        upstop.loc[:, 'limit'] = upstop['limit'].astype(dtype="string[pyarrow]")
-        logger.debug(f'upstop Memory: {upstop.memory_usage(deep=True)}')
-
         logger.info('Processing auction data...')
         auctions = dc.get_auctions()[['auc_vol', 'auc_amt']]
         logger.debug(f'auction Memory: {auctions.memory_usage(deep=True)}')
@@ -243,8 +240,12 @@ def slim_init(start_date, end_date, expire_days=30):
         df = (
             stk_basic[['name', 'list_date']].astype(dtype="string[pyarrow]").join(price).join(upstop).join(auctions)
         )
+        logger.debug(f'{len(df)} df Memory after join: {df.memory_usage(deep=True)}')
+
         # fix limit type
         df.limit.fillna('N', inplace=True)
+        df.loc[:, 'limit'] = df['limit'].astype(dtype="string[pyarrow]")
+        logger.debug(f'{len(df)} df Memory after pyarrow limit type: {df.memory_usage(deep=True)}')
 
         # calc avg_p
         df.loc[:, 'vol_ratio'] = round(df.vol / df.ma_vol_5, 2)
