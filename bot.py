@@ -109,6 +109,7 @@ class Bot():
 
         # avg_price_deep
         res, keys = avgp_stra2.get_result(self.df, self.end_date)
+        res = res.join(self.top_cons)
         avg_p_cols = ['name', 'pre_limit', 'limit', 'pre10_upstops', 'vol_ratio', 'open', 'close', 'pct_chg', 'avg_price', 'ma_close_5']
         if len(res) > 0:
             send_notification(f'[{self.end_date}] Stra {avgp_stra2.name} next open_pct must > -9% and < 0%, and > ma5')
@@ -116,6 +117,7 @@ class Bot():
 
         # avg_price ori
         res, keys = avgp_stra.get_result(self.df, self.end_date)
+        res = res.join(self.top_cons)
         if len(res) > 0:
             send_notification(f'[{self.end_date}] Stra {avgp_stra.name} next open_pct must > -9% and < 0%, and > ma5')
             send_stra_result(res[avg_p_cols])
