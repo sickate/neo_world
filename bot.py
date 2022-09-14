@@ -419,7 +419,11 @@ def df_to_text(df, prefix_newline=False):
         txt.append("")
     for raw in df.iterrows():
         row = raw[1]
-        txt.append(f'[{row.name}][{row["name"]}] {merge_text_list(row.plate_name)}, {int(row.conseq_up_num)}板 ({row.up_type})，流值{round(row.circ_mv/10000, 2)}亿，量比{round(row.vol_ratio,2)}，{round(row.amount/100000, 2)}亿，trf{round(row.turnover_rate_f,0)}%')
+        if 'conseq_up_num' in df.columns:
+            upstop_str = f'{int(row.conseq_up_num)}板 ({row.up_type}), '
+        else:
+            upstop_str = ''
+        txt.append(f'[{row.name}][{row["name"]}] {merge_text_list(row.plate_name)}, {upstop_str}流值{round(row.circ_mv/10000, 2)}亿，量比{round(row.vol_ratio,2)}，{round(row.amount/100000, 2)}亿，trf{round(row.turnover_rate_f,0)}%')
     return "\n".join(txt)
 
 
