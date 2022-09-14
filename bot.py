@@ -53,7 +53,7 @@ notification_cols = [
     'circ_mv', 'turnover_rate_f', 'vol_ratio', 'amount'
 ]
 
-avg_p_cols = ['name', 'plate_name', 'pre_limit', 'limit', 'pre10_upstops', 'vol_ratio', 'open', 'close', 'pct_chg', 'avg_price', 'ma_close_5']
+avg_p_cols = ['name', 'plate_name', 'pre_limit', 'limit', 'pre10_upstops', 'vol_ratio', 'open', 'close', 'pct_chg', 'avg_price', 'ma_close_5', 'circ_mv', 'turnover_rate_f', 'amount']
 
 def refine_variables(df, stra):
     rules = stra.rules
