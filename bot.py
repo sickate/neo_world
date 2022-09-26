@@ -73,12 +73,9 @@ class Bot():
         clean_cache_files()
 
         # top cons
-        if pdl.parse(end_date).weekday() == 5:
-            plate_mapping = ak_all_plates(use_cache=False, major_update=True, verbose=False)
-        else:
-            plate_mapping = ak_all_plates(use_cache=True, major_update=False, verbose=False)
-
+        plate_mapping = ak_all_plates(use_cache=True, major_update=False, verbose=False)
         logger.info(f'Total plate number: {len(plate_mapping)}')
+
         con_sum, ind_sum, cons_detail = calc_plate_data(
             self.df.xs(slice(week_ago_date, end_date), level='trade_date', drop_level=False),
             plate_mapping
@@ -95,8 +92,12 @@ class Bot():
 
 
     def prep_data(self):
+        if pdl.parse(end_date).weekday() == 4:
+            plate_mapping = ak_all_plates(use_cache=False, major_update=True, verbose=False)
+        else:
+            plate_mapping = ak_all_plates(use_cache=False, major_update=False, verbose=False)
+        logger.info(f'Total plate number: {len(plate_mapping)}')
         send_notification(f'{self.end_date} data is prepared. Total {len(self.df)} records.')
-        pass
 
 
     def before_mkt(self):
