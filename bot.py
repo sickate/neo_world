@@ -100,7 +100,7 @@ class Bot():
         # 
         emo = ak_activity(save=True, verbose=True)
         upstop_trend_df = upstop_trend(self.df, end_date, n_days=5)
-        mkt_sum = market_summary(df, upstop_trend_df, end_date)
+        mkt_sum = market_summary(self.df, upstop_trend_df, end_date)
         send_notification(mkt_sum)
         # send_notification(f'{self.end_date} data is prepared. Total {len(self.df)} records.')
 
