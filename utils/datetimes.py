@@ -16,7 +16,7 @@ if exists(trade_days_file):
     with open(trade_days_file, 'r') as f:
         all_trade_days = list(map(lambda t:t.strip(), f.readlines()))
 else:
-    all_trade_days = list(map(lambda t: t, ak.tool_trade_date_hist_sina()['trade_date']))
+    all_trade_days = list(map(lambda t: t.strftime('%Y-%m-%d'), ak.tool_trade_date_hist_sina()['trade_date']))
     with open(trade_days_file, 'w') as f:
         for t in all_trade_days:
             f.write(t + '\n')
